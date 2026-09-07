@@ -1,0 +1,781 @@
+/* ════════════════════════════════════════════════════
+   CourseAI Compass – Premium Chrome Extension Styles
+   Design system: Linear / Notion / modern SaaS
+════════════════════════════════════════════════════ */
+
+/* ── Reset & fonts ─────────────────────────────── */
+/*
+  NOTE: Google Fonts @import is blocked by Chrome Extension CSP.
+  We use a premium system font stack instead — looks identical on
+  modern macOS/Windows where Inter/Segoe UI are native fonts.
+*/
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 400px;
+  min-height: 100px;
+  max-height: 600px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Premium system font stack — Inter on Windows 11, SF Pro on macOS, Roboto on Android */
+  font-family: 'Inter', 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+               'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  background: #ffffff;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+/* ── App wrapper ───────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ── Views ─────────────────────────────────────── */
+.view {
+  display: none;
+  padding: 12px 14px 16px;
+  animation: fadeIn 0.18s ease;
+}
+.view.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  background: #0f172a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.brand-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+  line-height: 1;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* Navigation */
+.header-nav {
+  display: flex;
+  gap: 2px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.nav-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+}
+
+.nav-btn:hover {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.nav-btn.active {
+  background: #ffffff;
+  color: #22c55e;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ── Context card ──────────────────────────────── */
+.context-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 11px;
+}
+
+.context-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.context-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.context-value {
+  font-size: 12px;
+  color: #334155;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 270px;
+}
+
+.context-value.accent { color: #0f172a; font-weight: 600; }
+
+/* Skeleton loading */
+.context-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.skeleton-line {
+  height: 10px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 5px;
+}
+
+.w-80 { width: 80%; }
+.w-50 { width: 50%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Buttons ───────────────────────────────────── */
+.btn-primary {
+  width: 100%;
+  padding: 10px 16px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+  letter-spacing: -0.1px;
+}
+
+.btn-primary:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15,23,42,0.25);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  width: 100%;
+  padding: 9px 16px;
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.btn-ghost {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.btn-ghost:hover {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.btn-add {
+  padding: 8px 14px;
+  background: #22c55e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.btn-add:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+}
+
+.full-width { width: 100%; }
+
+/* ── Loading state ─────────────────────────────── */
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  gap: 10px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid #f1f5f9;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.loading-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ── Error state ───────────────────────────────── */
+.error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 12px;
+  gap: 8px;
+  background: #fff7f7;
+  border: 1px solid #fee2e2;
+  border-radius: 10px;
+}
+
+.error-icon { color: #ef4444; }
+
+.error-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.error-msg {
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+/* ── Score card ────────────────────────────────── */
+.score-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 11px;
+}
+
+.score-ring-wrapper {
+  position: relative;
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+}
+
+.score-ring { display: block; }
+
+.ring-bg {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 8;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: #22c55e;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.4s ease;
+}
+
+.score-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-number {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.score-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.score-category {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.score-disclaimer {
+  font-size: 10.5px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.score-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.stat-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.stat-num.green { color: #22c55e; }
+.stat-num.amber { color: #f59e0b; }
+
+.stat-lbl {
+  font-size: 9px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 24px;
+  background: #e2e8f0;
+}
+
+/* ── Skills sections ───────────────────────────── */
+.skills-section {
+  margin-bottom: 10px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 7px;
+}
+
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.chip.have {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.chip.learn {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.chip.profile {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.chip-remove {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.chip-remove:hover {
+  background: #e2e8f0;
+  color: #ef4444;
+}
+
+/* ── Next action card ──────────────────────────── */
+.next-action-card {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 6px;
+}
+
+.next-action-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #22c55e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+
+.next-action-text {
+  font-size: 12.5px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Override button styles inside dark card */
+.next-action-card .btn-primary {
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.next-action-card .btn-primary:hover {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+}
+
+.next-action-card .btn-secondary {
+  background: rgba(255,255,255,0.08);
+  color: #e2e8f0;
+  border-color: rgba(255,255,255,0.12);
+}
+
+.next-action-card .btn-secondary:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.2);
+  box-shadow: none;
+}
+
+.footer-disclaimer {
+  font-size: 9.5px;
+  color: #475569;
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+/* ── Saved Jobs view ───────────────────────────── */
+.view-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.saved-job-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.saved-job-card:hover {
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.saved-job-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.saved-job-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.saved-job-company {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.saved-job-score {
+  font-size: 14px;
+  font-weight: 700;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.saved-job-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.saved-job-date {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.saved-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.12s;
+}
+
+.saved-delete-btn:hover { color: #ef4444; background: #fff1f2; }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 20px;
+  gap: 8px;
+  color: #94a3b8;
+}
+
+.empty-state p {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.empty-state span {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ── Profile view ──────────────────────────────── */
+.profile-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.editable { margin-bottom: 12px; }
+
+.add-skill-row {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.skill-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.skill-input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+}
+
+.skill-input::placeholder { color: #94a3b8; }
+
+.save-confirmation {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #22c55e;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.save-confirmation.visible { opacity: 1; }
+
+/* ── Score ring color variants ─────────────────── */
+.ring-fill.strong  { stroke: #22c55e; }
+.ring-fill.good    { stroke: #3b82f6; }
+.ring-fill.some    { stroke: #f59e0b; }
+.ring-fill.low     { stroke: #ef4444; }
+
+/* ── Saved score badge colours ─────────────────── */
+.score-strong { color: #22c55e; }
+.score-good   { color: #3b82f6; }
+.score-some   { color: #f59e0b; }
+.score-low    { color: #ef4444; }

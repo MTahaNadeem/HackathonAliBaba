@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CourseAI Compass</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="app">
+
+  <!-- Top navigation bar -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">CourseAI Compass</span>
+        <span class="brand-tagline">Understand the job before you apply.</span>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <button class="nav-btn active" id="navAnalyze" title="Analyze">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      <button class="nav-btn" id="navSaved" title="Saved Jobs">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+      <button class="nav-btn" id="navProfile" title="My Skills">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ══════════════════════════════════════════
+       VIEW: ANALYZE
+  ══════════════════════════════════════════ -->
+  <div id="viewAnalyze" class="view active">
+
+    <!-- Page context card -->
+    <div class="context-card" id="contextCard">
+      <div class="context-skeleton" id="contextSkeleton">
+        <div class="skeleton-line w-80"></div>
+        <div class="skeleton-line w-50"></div>
+      </div>
+      <div class="context-info" id="contextInfo" style="display:none;">
+        <div class="context-row">
+          <span class="context-label">Page</span>
+          <span class="context-value" id="pageTitle">—</span>
+        </div>
+        <div class="context-row" id="rowCompany" style="display:none;">
+          <span class="context-label">Company</span>
+          <span class="context-value accent" id="detectedCompany">—</span>
+        </div>
+        <div class="context-row" id="rowJobTitle" style="display:none;">
+          <span class="context-label">Role</span>
+          <span class="context-value accent" id="detectedJobTitle">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA Button -->
+    <div id="initialState">
+      <button class="btn-primary" id="btnAnalyze">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        Analyze This Job
+      </button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loadingState" style="display:none;">
+      <div class="loading-card">
+        <div class="spinner"></div>
+        <p class="loading-text">Reading job description…</p>
+        <p class="loading-sub">Extracting skills from page content</p>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div id="errorState" style="display:none;">
+      <div class="error-card">
+        <div class="error-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <p class="error-title" id="errorTitle">Unable to analyze this page</p>
+        <p class="error-msg" id="errorMsg">CourseAI Compass couldn't identify enough job information on this page. Try opening the full job description.</p>
+        <button class="btn-secondary" id="btnRetry">Try Again</button>
+      </div>
+    </div>
+
+    <!-- Results state -->
+    <div id="resultsState" style="display:none;">
+
+      <!-- Match score -->
+      <div class="score-card">
+        <div class="score-ring-wrapper">
+          <svg class="score-ring" width="100" height="100" viewBox="0 0 100 100">
+            <circle class="ring-bg" cx="50" cy="50" r="42" />
+            <circle class="ring-fill" id="ringFill" cx="50" cy="50" r="42"
+              stroke-dasharray="263.9"
+              stroke-dashoffset="263.9"
+              transform="rotate(-90 50 50)" />
+          </svg>
+          <div class="score-center">
+            <span class="score-number" id="scoreNumber">0%</span>
+            <span class="score-label">Match</span>
+          </div>
+        </div>
+        <div class="score-meta">
+          <p class="score-category" id="scoreCategory">Analyzing…</p>
+          <p class="score-disclaimer">Skill alignment based on the job description.</p>
+          <div class="score-stats">
+            <div class="stat">
+              <span class="stat-num" id="statTotal">0</span>
+              <span class="stat-lbl">Detected</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat">
+              <span class="stat-num green" id="statMatched">0</span>
+              <span class="stat-lbl">Matched</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat">
+              <span class="stat-num amber" id="statMissing">0</span>
+              <span class="stat-lbl">Missing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills you have -->
+      <div class="skills-section" id="sectionHave">
+        <div class="section-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>You already have</span>
+        </div>
+        <div class="skill-chips" id="chipsHave"></div>
+      </div>
+
+      <!-- Skills to learn -->
+      <div class="skills-section" id="sectionLearn">
+        <div class="section-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>You may need to learn</span>
+        </div>
+        <div class="skill-chips" id="chipsLearn"></div>
+      </div>
+
+      <!-- Next action -->
+      <div class="next-action-card" id="nextActionCard">
+        <p class="next-action-label">Recommended next step</p>
+        <p class="next-action-text" id="nextActionText"></p>
+        <div class="action-buttons">
+          <button class="btn-primary" id="btnBuildPlan">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            Build Learning Plan
+          </button>
+          <button class="btn-secondary" id="btnSaveJob">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+            Add to My Path
+          </button>
+        </div>
+        <p class="footer-disclaimer">CourseAI Compass guides your preparation. Hiring decisions remain with employers.</p>
+      </div>
+
+      <!-- Re-analyze -->
+      <button class="btn-ghost" id="btnReAnalyze">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+        </svg>
+        Re-analyze
+      </button>
+
+    </div>
+    <!-- /resultsState -->
+
+  </div>
+  <!-- /viewAnalyze -->
+
+  <!-- ══════════════════════════════════════════
+       VIEW: SAVED JOBS
+  ══════════════════════════════════════════ -->
+  <div id="viewSaved" class="view">
+    <div class="view-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+      My Path
+    </div>
+    <div id="savedJobsList"></div>
+    <div id="savedEmpty" class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+      <p>No saved jobs yet.</p>
+      <span>Analyze a job listing and click "Add to My Path".</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       VIEW: PROFILE / SKILLS
+  ══════════════════════════════════════════ -->
+  <div id="viewProfile" class="view">
+    <div class="view-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      My Skills
+    </div>
+    <p class="profile-sub">These skills are compared against detected job requirements.</p>
+
+    <div class="skill-chips editable" id="profileSkillChips"></div>
+
+    <div class="add-skill-row">
+      <input type="text" id="newSkillInput" class="skill-input" placeholder="Add a skill… e.g. React" />
+      <button class="btn-add" id="btnAddSkill">Add</button>
+    </div>
+
+    <button class="btn-primary full-width" id="btnSaveSkills">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save Skills
+    </button>
+    <div class="save-confirmation" id="saveConfirmation">Skills saved ✓</div>
+  </div>
+
+</div>
+<!-- /app -->
+
+<script src="popup.js"></script>
+</body>
+</html>
