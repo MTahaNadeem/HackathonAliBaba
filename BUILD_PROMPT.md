@@ -1,6 +1,6 @@
-# Raah: complete product build brief
+# CourseCompass Ai: complete product build brief
 
-Build Raah, a beautifully designed, accessible career and learning navigator for students in Pakistan. This is a real application with a production PostgreSQL schema and validated server APIs, not a collection of decorative screens. The first release must connect discovering a direction, exploring a degree, finding a university, analysing a job, and following a learning plan. Use only free service tiers. Never enable billing, paid search, paid model fallback, paid job feeds, or automatic upgrades.
+Build CourseCompass Ai, a beautifully designed, accessible career and learning navigator for students in Pakistan. This is a real application with a production PostgreSQL schema and validated server APIs, not a collection of decorative screens. The first release must connect discovering a direction, exploring a degree, finding a university, analysing a job, and following a learning plan. Use only free service tiers. Never enable billing, paid search, paid model fallback, paid job feeds, or automatic upgrades.
 
 ## Product promise and audience
 Help a student move from uncertainty to an explained choice and a concrete next action. Support Matric, FSc, FA, ICS, ICom, O-levels, A-levels, other equivalence routes, current undergraduate students, and graduates. Do not treat FSc pre-engineering as the default qualification for everyone. Model subjects separately from the qualification system. Include civil engineering, economics, arts/design, business, psychology, computer science, mechanical/electrical engineering, and humanities in the extensible catalogue. Recommendations guide a student's decision; they do not determine admissions or employment outcomes.

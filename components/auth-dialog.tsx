@@ -28,7 +28,7 @@ export default function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="raah-dialog auth-dialog">
+      <DialogContent className="coursecompass-dialog auth-dialog">
         <AuthSymbol />
         <DialogTitle className="dialog-title">{text.title}</DialogTitle>
         <DialogDescription>{text.description}</DialogDescription>

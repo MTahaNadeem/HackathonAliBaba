@@ -1,6 +1,6 @@
 # Free-service setup
 
-Raah has a conventional Next.js application plus a Sites/Vinext build adapter. Supabase PostgreSQL is the authoritative database for account profiles and learning plans. There is no SQLite replacement. Guest state is deliberately temporary and labelled.
+CourseCompass Ai has a conventional Next.js application plus a Sites/Vinext build adapter. Supabase PostgreSQL is the authoritative database for account profiles and learning plans. There is no SQLite replacement. Guest state is deliberately temporary and labelled.
 
 ## Run
 
@@ -9,7 +9,7 @@ Use Node 22.13 or later. Run `npm ci`, copy `.env.example` to `.env.local`, and 
 ## Supabase Free — required for cloud saves
 
 1. Create a Free project at https://supabase.com/dashboard. Do not upgrade the organisation or enable paid add-ons.
-2. In the SQL Editor, run `supabase/migrations/001_raah.sql` once in the new project.
+2. In the SQL Editor, run `supabase/migrations/001_coursecompass.sql` once in the new project.
 3. Copy the project URL and **anon/publishable** key from project settings into `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local`.
 4. Enable email/password authentication. Add the exact local/deployed site URL to the Auth URL configuration. Keep email confirmation enabled. For the hackathon, sign up and confirm your own account before presenting. Default email delivery is rate-limited; do not promise mass public signup readiness.
 5. Restart the server. Sign up, confirm email, sign in, save a profile and plan, then reload to verify persistence.
@@ -19,7 +19,7 @@ Security: RLS ties private rows to `auth.uid()`. The server validates bearer tok
 
 ## Gemini free tier
 
-Create a developer API key at https://aistudio.google.com/apikey on a project **without Cloud Billing enabled**. Set `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-2.5-flash` on the server. Never prefix the secret with `NEXT_PUBLIC_`. Raah makes no billing/account changes and has no paid fallback. An API key does not reveal whether its Google project has billing enabled; the account owner must verify that setting.
+Create a developer API key at https://aistudio.google.com/apikey on a project **without Cloud Billing enabled**. Set `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-2.5-flash` on the server. Never prefix the secret with `NEXT_PUBLIC_`. CourseCompass Ai makes no billing/account changes and has no paid fallback. An API key does not reveal whether its Google project has billing enabled; the account owner must verify that setting.
 
 AI use is opt-in in the adviser. Only the message, selected goal and selected skill names are sent; profile names, emails and academic results are omitted. Users should not paste private information in messages. Free-tier data handling differs from paid services: see https://ai.google.dev/gemini-api/terms and the pricing page before a public launch. If the key, network, model or free quota fails, the UI explicitly switches to the deterministic guided adviser.
 

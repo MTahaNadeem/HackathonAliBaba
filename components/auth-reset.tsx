@@ -54,7 +54,7 @@ export default function AuthReset() {
       <div className="auth-card">
         <Link href="/" className="brand auth-brand">
           <span className="brand-mark"><Route size={24} /></span>
-          raah<span className="brand-dot">.</span>
+          CourseCompass <span className="brand-dot">Ai</span>
         </Link>
         <AuthSymbol />
         <h1 className="dialog-title">{done ? 'Password saved.' : text.title}</h1>
@@ -69,7 +69,7 @@ export default function AuthReset() {
             onComplete={() => setDone(true)}
           />
         )}
-        <Link href="/" className="text-button">{done ? 'Open my workspace' : 'Back to Raah'}</Link>
+        <Link href="/" className="text-button">{done ? 'Open my workspace' : 'Back to CourseCompass Ai'}</Link>
       </div>
     </div>
   );

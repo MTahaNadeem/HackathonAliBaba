@@ -1,4 +1,4 @@
-# Raah visual system
+# CourseCompass Ai visual system
 
 Audience: students in Pakistan exploring an uncertain next chapter. Primary task: choose the next useful step.
 
