@@ -1,2 +1,2 @@
-import RaahApp from '@/components/raah-app';
-export default function Page(){ return <RaahApp/>; }
+import CourseCompassApp from '@/components/coursecompass-app';
+export default function Page(){ return <CourseCompassApp/>; }

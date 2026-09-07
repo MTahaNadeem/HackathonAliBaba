@@ -1,4 +1,4 @@
-# Raah — Your next chapter
+# CourseCompass AI — Your next chapter
 
 A career and learning navigator for students in Pakistan, spanning intermediate and O/A-level pathways through undergraduate study and job preparation.
 
