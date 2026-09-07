@@ -1,0 +1,15 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {analyseJob,assessUniversity,createPlan,emptyProfile,recommend,exportPlan} from '../lib/domain';import {universities,degrees} from '../lib/catalogue';import {profileSchema,jobSchema} from '../lib/validation';
+test('A-level raw grades never become equivalence',()=>{const r=assessUniversity(universities[1],{...emptyProfile,qualification:'A-levels',ssc:95,hssc:95,net:90});assert.equal(r.status,'Equivalence needed');assert.equal(r.aggregate,null)});
+test('unknown fees do not pass budget filter',()=>{const r=assessUniversity(universities[2],{...emptyProfile,budget:1000000});assert.equal(r.budget,'Costs need checking')});
+test('a failed academic minimum wins over high test scores',()=>{const r=assessUniversity(universities[1],{...emptyProfile,ssc:59,hssc:99,net:100});assert.equal(r.status,'Below published minimum');assert.equal(r.aggregate,null)});
+test('NET formula uses percentages and source weights',()=>{const r=assessUniversity(universities[1],{...emptyProfile,ssc:90,hssc:80,net:75});assert.equal(r.aggregate,77.25)});
+test('O-level-only needs higher secondary pathway',()=>assert.equal(assessUniversity(universities[1],{...emptyProfile,qualification:'O-levels'}).status,'Next qualification needed'));
+test('engineering marks alone never establish full eligibility',()=>assert.equal(assessUniversity(universities[0],{...emptyProfile,ssc:90,hssc:90,net:90}).status,'Subject route needs review'));
+test('budget includes mandatory semester charges',()=>assert.equal(assessUniversity(universities[0],{...emptyProfile,budget:220000}).budget,'Above semester budget'));
+test('skill aliases match with boundaries',()=>{const r=analyseJob('Use Excel and Python. Digital editing skills preferred.',['Spreadsheets']);assert.equal(r.gaps.find(g=>g.skill==='Spreadsheets')?.status,'Self-reported');assert.ok(!r.gaps.some(g=>g.skill==='Git'));assert.ok(r.gaps.find(g=>g.skill==='Editing')?.optional)});
+test('explicitly not required skills are excluded',()=>{const r=analyseJob('Python is not required. No SQL experience required. Communication skills required.',[]);assert.deepEqual(r.gaps.map(g=>g.skill),['Communication'])});
+test('unrecognised jobs do not invent gaps',()=>assert.equal(analyseJob('A motivated colleague with a positive attitude.',[]).gaps.length,0));
+test('plans are bounded, unique and connected to resources',()=>{const p=createPlan('Economics',['Statistics','Statistics','Research'],5);assert.equal(p.milestones.length,2);assert.ok(p.milestones.every(m=>m.resourceId&&!m.done));assert.match(exportPlan(p),/https:\/\//)});
+test('interests change recommendation order',()=>{const r=recommend({...emptyProfile,interests:['Creativity','Storytelling','Design'],subjects:['Art']});assert.equal(r[0].id,'design')});
+test('profile and job validation reject invalid input',()=>{assert.ok(!profileSchema.safeParse({...emptyProfile,ssc:101}).success);assert.ok(!jobSchema.safeParse({text:'short'}).success);assert.ok(profileSchema.safeParse(emptyProfile).success)});
