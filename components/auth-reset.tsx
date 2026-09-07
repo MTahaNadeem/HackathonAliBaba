@@ -54,7 +54,7 @@ export default function AuthReset() {
       <div className="auth-card">
         <Link href="/" className="brand auth-brand">
           <span className="brand-mark"><Route size={24} /></span>
-          coursecompass<span className="brand-dot">.</span>
+          CourseCompass<span className="brand-dot">.</span>
         </Link>
         <AuthSymbol />
         <h1 className="dialog-title">{done ? 'Password saved.' : text.title}</h1>
