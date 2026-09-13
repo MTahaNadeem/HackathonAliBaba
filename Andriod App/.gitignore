@@ -1,3 +1,4 @@
+# ─── Android / Gradle ───────────────────────────────────────────────────────
 *.iml
 .gradle
 .kotlin
@@ -13,6 +14,21 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# ─── App Build Output ────────────────────────────────────────────────────────
+app/build/
+
+# ─── Credentials & Secrets ───────────────────────────────────────────────────
+# Local env file with real keys — NEVER commit this
 .env
+# Release keystore — keep private and back up separately
+*.jks
+# Debug keystore — regenerated automatically
 debug.keystore
+# local.properties has SDK path — machine-specific
+local.properties
+
+# ─── macOS & Editor ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp

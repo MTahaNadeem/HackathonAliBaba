@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "CourseCampus AI"
+rootProject.name = "DustZero"
 
 include(":app")
