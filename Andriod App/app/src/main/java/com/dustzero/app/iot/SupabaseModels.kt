@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
  * sun_detected, sunlight_level, cleaning_state, cleaning_progress,
  * cleaning_steps, fault, updated_at.
  *
- * cleaning_state values from ESP32: IDLE | MOVING_DOWN | PAUSE_BOTTOM | MOVING_UP
+ * cleaning_state values from ESP32: IDLE | MOVING_DOWN | PAUSE_BOTTOM | MOVING_UP | PAUSE_TOP
  * sunlight_level values from ESP32: WEAK | MEDIUM | STRONG
  */
 @Serializable
@@ -39,7 +39,7 @@ data class DeviceDTO(
  * DTO for inserting into the `commands` table.
  * status is always 'PENDING' when inserted from the app;
  * the ESP32 updates it to ACKNOWLEDGED / COMPLETED / FAILED.
- * command values: START_CLEANING | STOP_CLEANING | HOME_MOTOR
+ * command values: START_CLEANING | STOP_CLEANING
  */
 @Serializable
 data class CommandDTO(

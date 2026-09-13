@@ -5,8 +5,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cdade0bd-c14b-4423-b2cc-479af27ed028" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/DemoIotService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/DemoIotService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/IotService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/IotService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/SupabaseIotService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/SupabaseIotService.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/SupabaseModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/iot/SupabaseModels.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/models/AppConstants.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/models/AppConstants.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/models/Models.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/models/Models.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/AlertsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/AlertsScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/AnalyticsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/AnalyticsScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/SettingsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/SettingsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/CleaningScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/CleaningScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/DashboardScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/ui/screens/DashboardScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/viewmodel/MainViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/dustzero/app/viewmodel/MainViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/supabase_migrations/20260913_device_history.sql" beforeDir="false" afterPath="$PROJECT_DIR$/supabase_migrations/20260913_device_history.sql" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

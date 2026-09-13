@@ -36,6 +36,7 @@ fun CleaningScreen(viewModel: MainViewModel) {
     val isOnline by viewModel.isDeviceOnline.collectAsStateWithLifecycle()
     val hasFault by viewModel.hasFault.collectAsStateWithLifecycle()
 
+    val systemStopped by viewModel.systemStopped.collectAsStateWithLifecycle()
     var showStartDialog by remember { mutableStateOf(false) }
     var showStopDialog by remember { mutableStateOf(false) }
     
@@ -68,7 +69,7 @@ fun CleaningScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(isStarting) {
         if (isStarting) {
-            kotlinx.coroutines.delay(15000)
+            kotlinx.coroutines.delay(13000)
             if (isStarting) {
                 isStarting = false
                 showOfflineError = true
@@ -78,7 +79,7 @@ fun CleaningScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(isStopping) {
         if (isStopping) {
-            kotlinx.coroutines.delay(15000)
+            kotlinx.coroutines.delay(13000)
             if (isStopping) {
                 isStopping = false
                 showOfflineError = true
@@ -244,18 +245,34 @@ fun CleaningScreen(viewModel: MainViewModel) {
                             )
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                text = "Ready to Clean",
+                                text = "Armed — waiting for conditions",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Live Conditions List
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                InfoRow("Sunlight Level", sensorData.sunlightLevel)
+                                InfoRow("Rain Sensor", if (sensorData.rainDetected) "Detected" else "Clear")
+                                InfoRow("Solar Power", "%.3fW (threshold: 0.050W)".format(sensorData.solarPower))
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = when {
+                                    systemStopped -> "System is currently halted via Emergency Stop."
                                     sensorData.rainDetected -> "Blocked — rain detected"
                                     isOffline -> "Device offline"
-                                    else -> "Tap Start Cleaning to begin a cycle"
+                                    else -> "System will start cleaning automatically when sunlight is strong, no rain is detected, and solar power is below 0.05W."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
@@ -327,16 +344,17 @@ fun CleaningScreen(viewModel: MainViewModel) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
                     Text(
-                        if (showOfflineError && !canStart) "UNAVAILABLE" else "START CLEANING",
+                        if (showOfflineError && !canStart) "UNAVAILABLE" else "ENABLE AUTOMATIC CLEANING",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
             // STOP — filled danger action (high-priority red)
             Button(
                 onClick = { 
-                    if (!canStop) {
+                    if (!canStop && !systemStopped) {
                         showOfflineError = true
                     } else {
                         showStopDialog = true 
@@ -356,15 +374,33 @@ fun CleaningScreen(viewModel: MainViewModel) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
                     Text(
-                        if (showOfflineError && !canStop) "UNAVAILABLE" else "STOP CLEANING",
+                        if (showOfflineError && !canStop && !systemStopped) "UNAVAILABLE" else "EMERGENCY STOP",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
-        if (sensorData.rainDetected) {
+        if (systemStopped) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = WarningAmber.copy(alpha = 0.08f)
+                ),
+                border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.3f))
+            ) {
+                Text(
+                    text = "System stopped — press Enable to resume automatic operation.",
+                    modifier = Modifier.padding(14.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        } else if (sensorData.rainDetected) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -390,8 +426,8 @@ fun CleaningScreen(viewModel: MainViewModel) {
     if (showStartDialog) {
         AlertDialog(
             onDismissRequest = { showStartDialog = false },
-            title = { Text("Start Cleaning?") },
-            text = { Text("Are you sure you want to start the cleaning cycle? The system will sweep the panel automatically.") },
+            title = { Text("Enable Automatic Cleaning?") },
+            text = { Text("This will arm the system. Cleaning will start automatically when conditions are met (strong sun, no rain, power < 0.05W).") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -401,7 +437,7 @@ fun CleaningScreen(viewModel: MainViewModel) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                 ) {
-                    Text("Start Cleaning")
+                    Text("Enable")
                 }
             },
             dismissButton = {
@@ -415,8 +451,8 @@ fun CleaningScreen(viewModel: MainViewModel) {
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
-            title = { Text("Stop Cleaning?") },
-            text = { Text("This will immediately stop the cleaning mechanism. It may be left in an intermediate position.") },
+            title = { Text("Emergency Stop?") },
+            text = { Text("This will immediately halt the motor. The system will remain stopped until you enable it again.") },
             confirmButton = {
                 Button(
                     onClick = {

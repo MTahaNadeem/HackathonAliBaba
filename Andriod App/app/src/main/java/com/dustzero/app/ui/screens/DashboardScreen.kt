@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +56,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(isStarting) {
         if (isStarting) {
-            kotlinx.coroutines.delay(15000)
+            kotlinx.coroutines.delay(13000)
             if (isStarting) {
                 isStarting = false
                 showOfflineError = true // Reuse this flag to show error on button
@@ -177,7 +178,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                             color = DangerRed
                         )
                         Text(
-                            text = "ESP32 reported a hardware fault. Manual inspection required.",
+                            text = "Hardware fault detected — a sensor or display failed to initialize. Restart the device to clear this.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -202,19 +203,19 @@ fun DashboardScreen(viewModel: MainViewModel) {
         ) {
             MetricCard(
                 title = "Solar Power",
-                value = "%.2f".format(sensorData.solarPower),
+                value = if (isOnline) "%.2f".format(maxOf(0.0, sensorData.solarPower)) else "—",
                 unit = "W",
                 icon = Icons.Rounded.WbSunny,
                 iconTint = WarningAmber,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
             MetricCard(
                 title = "Voltage",
-                value = "%.2f".format(sensorData.solarVoltage),
+                value = if (isOnline) "%.2f".format(maxOf(0.0, sensorData.solarVoltage)) else "—",
                 unit = "V",
                 icon = Icons.Rounded.ElectricBolt,
                 iconTint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
         }
 
@@ -225,19 +226,19 @@ fun DashboardScreen(viewModel: MainViewModel) {
         ) {
             MetricCard(
                 title = "Current",
-                value = "%.1f".format(sensorData.solarCurrent),
-                unit = "mA",
+                value = if (isOnline) "%.3f".format(maxOf(0.0, sensorData.solarCurrent)) else "—",
+                unit = "A",
                 icon = Icons.Rounded.BatteryChargingFull,
                 iconTint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
             MetricCard(
                 title = "Temperature",
-                value = "%.1f".format(sensorData.temperature),
+                value = if (isOnline) "%.1f".format(sensorData.temperature) else "—",
                 unit = "°C",
                 icon = Icons.Rounded.Thermostat,
                 iconTint = DangerRed,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
         }
 
@@ -250,19 +251,19 @@ fun DashboardScreen(viewModel: MainViewModel) {
         ) {
             StatusCard(
                 title = "Sunlight",
-                status = sunlightStatus,
+                status = if (isOnline) sunlightStatus else "—",
                 icon = Icons.Rounded.WbSunny,
                 color = WarningAmber,
-                description = ldrDescription,
-                modifier = Modifier.weight(1f)
+                description = if (isOnline) ldrDescription else null,
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
             StatusCard(
                 title = "Rain Sensor",
-                status = rainStatus,
+                status = if (isOnline) rainStatus else "—",
                 icon = Icons.Rounded.CloudQueue,
                 color = rainColor,
-                description = rainDescription,
-                modifier = Modifier.weight(1f)
+                description = if (isOnline) rainDescription else null,
+                modifier = Modifier.weight(1f).alpha(if (isOnline) 1f else 0.5f)
             )
         }
 
@@ -308,7 +309,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         if (isStarting) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
-                            Text(if (showOfflineError && !canStart) "Unavailable" else "START", fontWeight = FontWeight.Bold)
+                            Text(if (showOfflineError && !canStart) "Unavailable" else "ENABLE", fontWeight = FontWeight.Bold)
                         }
                     }
                     Button(
@@ -323,7 +324,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("STOP", fontWeight = FontWeight.Bold)
+                        Text("EMERGENCY STOP", fontWeight = FontWeight.Bold)
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -331,7 +332,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     text = if (isCleaning)
                         AppConstants.cleaningStateLabel(sensorData.cleaningState)
                     else
-                        "System Ready",
+                        "Armed — waiting for conditions",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

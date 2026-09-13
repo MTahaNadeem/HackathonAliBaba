@@ -38,3 +38,10 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+
+/build
+/.gradle
+/local.properties
+*.bin
+*.lock

@@ -19,7 +19,7 @@ android {
     minSdk = 24
     targetSdk = 36
     versionCode = 1
-    versionName = "2.1.0"
+    versionName = "2.1.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -146,4 +146,5 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+  implementation("androidx.core:core-splashscreen:1.0.1")
 }

@@ -93,9 +93,6 @@ class DemoIotService(private val dao: AppDao) : IotService {
         _sensorData.update { it.copy(cleaningState = AppConstants.STATE_IDLE, cleaningProgress = 0) }
     }
 
-    override suspend fun homeMotor() {
-        _sensorData.update { it.copy(cleaningState = AppConstants.STATE_IDLE, cleaningProgress = 0) }
-    }
 
     override fun updateConfig(newConfig: ThresholdConfig) {
         _config.value = newConfig

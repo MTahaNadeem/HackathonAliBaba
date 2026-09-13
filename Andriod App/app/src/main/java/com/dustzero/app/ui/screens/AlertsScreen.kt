@@ -34,6 +34,7 @@ import java.util.*
 @Composable
 fun AlertsScreen(viewModel: MainViewModel) {
     val dbAlerts by viewModel.alerts.collectAsStateWithLifecycle()
+    val hasFault by viewModel.hasFault.collectAsStateWithLifecycle()
 
     // Fallback mock alerts shown when the DB is empty (first run / demo)
     val mockAlerts = remember {
@@ -57,7 +58,23 @@ fun AlertsScreen(viewModel: MainViewModel) {
     }
 
     val alerts = if (dbAlerts.isEmpty()) mockAlerts else dbAlerts
-    val unreadCount = alerts.count { !it.read }
+    
+    val displayAlerts = if (hasFault) {
+        listOf(
+            AlertEntity(
+                id = -999,
+                type = "Fault",
+                severity = "CRITICAL",
+                message = "SYSTEM FAULT - Hardware fault detected — a sensor or display failed to initialize. Restart the device to clear this.",
+                timestamp = System.currentTimeMillis(),
+                read = false
+            )
+        ) + alerts
+    } else {
+        alerts
+    }
+    
+    val unreadCount = displayAlerts.count { !it.read }
 
     Column(
         modifier = Modifier
@@ -94,7 +111,7 @@ fun AlertsScreen(viewModel: MainViewModel) {
                 if (unreadCount > 0) {
                     FilledTonalButton(
                         onClick = {
-                            alerts.filter { !it.read }.forEach { alert ->
+                            displayAlerts.filter { !it.read }.forEach { alert ->
                                 if (alert.id > 0) viewModel.markAlertRead(alert.id)
                             }
                         },
@@ -114,7 +131,7 @@ fun AlertsScreen(viewModel: MainViewModel) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
 
         // ── Alert List / Empty State ─────────────────────────────────────────
-        if (alerts.isEmpty()) {
+        if (displayAlerts.isEmpty()) {
             // Empty state
             Box(
                 modifier = Modifier
@@ -156,7 +173,7 @@ fun AlertsScreen(viewModel: MainViewModel) {
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(alerts, key = { it.id }) { alert ->
+                items(displayAlerts, key = { it.id }) { alert ->
                     AlertCard(
                         alert = alert,
                         onMarkRead = {
@@ -188,7 +205,7 @@ fun AlertCard(alert: AlertEntity, onMarkRead: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !alert.read, onClick = onMarkRead)
+            .clickable(enabled = !alert.read && alert.id > 0, onClick = onMarkRead)
             .drawBehind {
                 // Colored left accent bar — the only strong perimeter indicator
                 drawLine(

@@ -20,8 +20,6 @@ object AppConstants {
 
     const val APP_NAME = "DustZero"
     const val APP_SUBTITLE = "Smart Solar Panel Cleaning System"
-    const val APP_VERSION = "2.1.0"
-
     // ─── Supabase Tables ─────────────────────────────────────────────────────
     // Schema as of v1: two tables only — devices and commands.
     // NOTE: No `alerts` table exists in the current schema — alerts are
@@ -37,7 +35,6 @@ object AppConstants {
 
     const val CMD_START_CLEANING = "START_CLEANING"
     const val CMD_STOP_CLEANING = "STOP_CLEANING"
-    const val CMD_HOME_MOTOR = "HOME_MOTOR"
 
     // ─── Cleaning States (written by ESP32 firmware to devices.cleaning_state) ─
     // These are the exact string values the ESP32 writes — do not rename.
@@ -46,6 +43,7 @@ object AppConstants {
     const val STATE_MOVING_DOWN = "MOVING_DOWN"
     const val STATE_PAUSE_BOTTOM = "PAUSE_BOTTOM"
     const val STATE_MOVING_UP = "MOVING_UP"
+    const val STATE_PAUSE_TOP = "PAUSE_TOP"
 
     /** UI-friendly labels for each cleaning_state value */
     fun cleaningStateLabel(state: String): String = when (state) {
@@ -53,12 +51,13 @@ object AppConstants {
         STATE_MOVING_DOWN -> "Moving Down"
         STATE_PAUSE_BOTTOM -> "Paused at Bottom"
         STATE_MOVING_UP -> "Moving Up"
+        STATE_PAUSE_TOP -> "Paused at Top"
         else -> state // Pass through unknown states as-is
     }
 
     /** Returns true if the device is actively running a cleaning cycle */
     fun isActivelyCleaning(state: String): Boolean =
-        state == STATE_MOVING_DOWN || state == STATE_PAUSE_BOTTOM || state == STATE_MOVING_UP
+        state == STATE_MOVING_DOWN || state == STATE_PAUSE_BOTTOM || state == STATE_MOVING_UP || state == STATE_PAUSE_TOP
 
     // ─── Online / Offline Heartbeat ───────────────────────────────────────────
     // Device is considered ONLINE only if:
@@ -67,7 +66,7 @@ object AppConstants {
     // This prevents stale `connected = true` from showing a device as online
     // after an ungraceful power loss.
 
-    const val HEARTBEAT_TIMEOUT_MS = 30_000L // 30 seconds
+    const val HEARTBEAT_TIMEOUT_MS = 20_000L // 20 seconds
 
     // ─── Local Database ───────────────────────────────────────────────────────
 

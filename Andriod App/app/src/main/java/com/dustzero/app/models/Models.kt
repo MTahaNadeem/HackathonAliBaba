@@ -8,6 +8,7 @@ package com.dustzero.app.models
  *   MOVING_DOWN   — wiper moving down the panel
  *   PAUSE_BOTTOM  — wiper paused at the bottom end
  *   MOVING_UP     — wiper returning to top
+ *   PAUSE_TOP     — wiper paused at the top end
  *
  * isOnline is NOT a raw Supabase column — it is derived in SupabaseIotService
  * by combining `connected == true` AND `updatedAt` being within the last 30s.

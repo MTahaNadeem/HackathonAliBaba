@@ -78,7 +78,7 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
     val currentChartEntryModel = remember(history) {
         if (history.isEmpty()) return@remember entryModelOf(0f)
         val entries = history.mapIndexed { index, dto ->
-            FloatEntry(x = index.toFloat(), y = (dto.solarCurrent * 1000).toFloat()) // Convert A to mA
+            FloatEntry(x = index.toFloat(), y = dto.solarCurrent.toFloat())
         }
         entryModelOf(entries)
     }
@@ -238,7 +238,7 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
                 }
             }
             
-            // 2. Solar Current (mA)
+            // 2. Solar Current (A)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -249,14 +249,14 @@ fun AnalyticsScreen(viewModel: MainViewModel) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "SOLAR CURRENT (mA)",
+                            text = "SOLAR CURRENT (A)",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold
                         )
                         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
                             Text(
-                                "Now: ${String.format(Locale.US, "%.0f", sensorData.solarCurrent * 1000)}mA",
+                                "Now: ${String.format(Locale.US, "%.3f", sensorData.solarCurrent)}A",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),

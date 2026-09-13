@@ -12,7 +12,7 @@ interface IotService {
     fun setDemoMode(enabled: Boolean)
     suspend fun startCleaning()
     suspend fun stopCleaning()
-    suspend fun homeMotor()
+
     fun updateConfig(newConfig: ThresholdConfig)
     fun setDemoScenario(scenario: String)
     suspend fun getDeviceHistory(rangeHours: Int): List<DeviceHistoryDTO>

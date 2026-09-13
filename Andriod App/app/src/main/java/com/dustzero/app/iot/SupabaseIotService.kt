@@ -299,13 +299,6 @@ class SupabaseIotService(
         }
     }
 
-    override suspend fun homeMotor() {
-        if (_demoModeEnabled.value || !isConfigured) {
-            fallbackDemoService.homeMotor()
-        } else {
-            sendCommand(AppConstants.CMD_HOME_MOTOR)
-        }
-    }
 
     /**
      * Inserts a command row into the `commands` table with status = PENDING.

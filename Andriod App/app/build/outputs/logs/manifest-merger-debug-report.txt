@@ -93,6 +93,7 @@ MERGED from [androidx.compose.ui:ui-test-manifest:1.7.2] D:\SOFTWARE\Android\.gr
 MERGED from [androidx.activity:activity:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\c0e1b6de3eddf1e7d4b5094e7ac2443b\transformed\activity-1.10.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.activity:activity-ktx:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\01978599288738108839c254cb5d89f9\transformed\activity-ktx-1.10.1\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.activity:activity-compose:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\35d8fa1e050ab9215a130edd7a8b51bf\transformed\activity-compose-1.10.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.core:core-splashscreen:1.0.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\aa5894068205d7eb8bea1c4e4dc77e84\transformed\core-splashscreen-1.0.1\AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\4d4b373399c38dafc3021765417dc283\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.core:core-viewtree:1.0.0] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\37efeae70e7991e1751859d423fff6f5\transformed\core-viewtree-1.0.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.sqlite:sqlite-framework-android:2.5.0] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\d819b78c3d148b1728fc087f59ef62c9\transformed\sqlite-framework-release\AndroidManifest.xml:17:1-22:12
@@ -209,7 +210,7 @@ ADDED from D:\Programming\Apps\DustZero\app\src\main\AndroidManifest.xml:17:9-27
 	android:exported
 		ADDED from D:\Programming\Apps\DustZero\app\src\main\AndroidManifest.xml:19:13-36
 	android:theme
-		ADDED from D:\Programming\Apps\DustZero\app\src\main\AndroidManifest.xml:21:13-55
+		ADDED from D:\Programming\Apps\DustZero\app\src\main\AndroidManifest.xml:21:13-54
 	android:name
 		ADDED from D:\Programming\Apps\DustZero\app\src\main\AndroidManifest.xml:18:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
@@ -404,6 +405,8 @@ MERGED from [androidx.activity:activity-ktx:1.10.1] D:\SOFTWARE\Android\.gradle\
 MERGED from [androidx.activity:activity-ktx:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\01978599288738108839c254cb5d89f9\transformed\activity-ktx-1.10.1\AndroidManifest.xml:5:5-44
 MERGED from [androidx.activity:activity-compose:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\35d8fa1e050ab9215a130edd7a8b51bf\transformed\activity-compose-1.10.1\AndroidManifest.xml:5:5-44
 MERGED from [androidx.activity:activity-compose:1.10.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\35d8fa1e050ab9215a130edd7a8b51bf\transformed\activity-compose-1.10.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-splashscreen:1.0.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\aa5894068205d7eb8bea1c4e4dc77e84\transformed\core-splashscreen-1.0.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core-splashscreen:1.0.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\aa5894068205d7eb8bea1c4e4dc77e84\transformed\core-splashscreen-1.0.1\AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\4d4b373399c38dafc3021765417dc283\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:5:5-44
 MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\4d4b373399c38dafc3021765417dc283\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:5:5-44
 MERGED from [androidx.core:core-viewtree:1.0.0] D:\SOFTWARE\Android\.gradle\caches\9.6.0\transforms\37efeae70e7991e1751859d423fff6f5\transformed\core-viewtree-1.0.0\AndroidManifest.xml:5:5-44

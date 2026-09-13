@@ -44,6 +44,7 @@ SELECT cron.schedule(
     SELECT
         device_id, solar_power, solar_voltage, solar_current, temperature,
         ldr1, ldr2, sunlight_level, rain_detected, cleaning_state
-    FROM public.devices;
+    FROM public.devices
+    WHERE connected = true AND updated_at >= now() - interval '20 seconds';
   $$
 );

@@ -28,6 +28,13 @@ import com.dustzero.app.models.AppConstants
 
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val versionName = try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+    } catch (e: Exception) {
+        "Unknown"
+    }
+
     val demoModeEnabled by viewModel.demoModeEnabled.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -54,7 +61,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Column {
                     Text(AppConstants.APP_SUBTITLE, style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Version: ${AppConstants.APP_VERSION}", style = MaterialTheme.typography.labelSmall)
+                    Text("Version: $versionName", style = MaterialTheme.typography.labelSmall)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("DustZero is an automated solar panel cleaning system designed to maintain peak efficiency. This companion app provides real-time monitoring and manual overrides for your hardware.", style = MaterialTheme.typography.bodySmall)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -258,7 +265,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 onClick = { showAboutDialog = true }
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-            SettingRowInfo(icon = Icons.Rounded.SystemUpdate, label = "App Version", value = AppConstants.APP_VERSION)
+            SettingRowInfo(icon = Icons.Rounded.SystemUpdate, label = "App Version", value = versionName)
         }
 
         Spacer(modifier = Modifier.height(32.dp))

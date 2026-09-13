@@ -9,6 +9,9 @@ import com.dustzero.app.iot.IotService
 import com.dustzero.app.models.AppConstants
 import com.dustzero.app.models.ThresholdConfig
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -79,23 +82,23 @@ class MainViewModel(
 
     // ─── Commands ─────────────────────────────────────────────────────────────
 
+    private val _systemStopped = MutableStateFlow(false)
+    val systemStopped = _systemStopped.asStateFlow()
+
     fun startCleaning() {
+        _systemStopped.value = false
         viewModelScope.launch {
             iotService.startCleaning()
         }
     }
 
     fun stopCleaning() {
+        _systemStopped.value = true
         viewModelScope.launch {
             iotService.stopCleaning()
         }
     }
 
-    fun homeMotor() {
-        viewModelScope.launch {
-            iotService.homeMotor()
-        }
-    }
 
     fun updateConfig(config: ThresholdConfig) {
         iotService.updateConfig(config)
