@@ -26,4 +26,4 @@ npm run build
 
 Repository: https://github.com/syed-haseeb-badshah/AliBabaHackathon
 
-Official data and resource URLs are stored in `lib/catalogue.ts`. There is no live vacancy integration; example role briefs are never presented as real hiring opportunities. Admission and employment decisions remain with the institutions and employers.
+Official data and resource URLs are stored in `lib/catalogue.ts`. There is no live vacancy integration; example role briefs are never presented as real hiring opportunities. Admission and employment decisions remain with the institutions and employers
