@@ -1,4 +1,4 @@
-com.example
+com.dustzero.app
 color black
 color purple_200
 color purple_500

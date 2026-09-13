@@ -4,7 +4,7 @@
     "type": "COMPATIBLE_SCREEN_MANIFEST",
     "kind": "Directory"
   },
-  "applicationId": "com.aistudio.raah.wvzx",
+  "applicationId": "com.dustzero.app",
   "variantName": "debug",
   "elements": []
 }
