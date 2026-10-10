@@ -35,8 +35,8 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
     
     // Hackathon fallback if AI quota is reached or key is invalid
     if (schema) {
-      console.warn('Falling back to mock data due to AI provider error.');
       if ((schema as any)?.properties?.skills) {
+        console.warn('Falling back to mock data for CV extraction due to AI provider error.');
         return {
           skills: ["JavaScript", "React", "Node.js", "Problem Solving"],
           experience: "Software Developer with 3 years of experience building web applications.",
@@ -45,7 +45,6 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
           links: "github.com/example"
         };
       }
-      return {};
     }
     throw new Error('AI provider unavailable.');
   }

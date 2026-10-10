@@ -111,39 +111,44 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
             <div className="analysis-results">
               {result.title && <div className="result-summary">
                 <strong>{result.title}</strong>
-                <div>
-                  <b>{result.company}</b>
-                </div>
+                {result.company && (
+                  <div>
+                    <b>{result.company}</b>
+                  </div>
+                )}
               </div>}
               
               <div className="gap-list">
-                {result.gaps.map((g, i) => (
-                  <div className={`gap-row ${g.status === 'Demonstrated' ? 'known' : ''}`} key={i}>
-                    <span className="gap-dot">{g.status === 'Demonstrated' ? <Check size={13}/> : (g.status === 'Improve' ? '~' : '+')}</span>
-                    <div>
-                      <strong>{g.skill}</strong>
-                      <p>{g.importance}</p>
-                      <p className="small-text muted">{g.evidence}</p>
+                {(result.gaps || []).map((g, i) => {
+                  const isDemonstrated = g.status === 'Demonstrated' || (g.status as string) === 'Self-reported';
+                  return (
+                    <div className={`gap-row ${isDemonstrated ? 'known' : ''}`} key={i}>
+                      <span className="gap-dot">{isDemonstrated ? <Check size={13}/> : (g.status === 'Improve' ? '~' : '+')}</span>
+                      <div>
+                        <strong>{g.skill}</strong>
+                        {g.importance && <p>{g.importance}</p>}
+                        <p className="small-text muted">{g.evidence}</p>
+                      </div>
+                      <span className="gap-status">{g.optional ? 'Preferred · ' : ''}{g.status}</span>
                     </div>
-                    <span className="gap-status">{g.optional ? 'Preferred · ' : ''}{g.status}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               
-              {!result.gaps.length && <Empty title="No skills identified" text="The AI could not identify skills from this description."/>}
+              {(!result.gaps || !result.gaps.length) && <Empty title="No skills identified" text="The analyser could not identify catalogued skills from this description."/>}
               
-              {result.formal.length > 0 && (
+              {Boolean(result.formal && result.formal.length > 0) && (
                 <div className="formal-panel">
                   <strong>Also check these requirements</strong>
                   <ul>{result.formal.map((f, i) => <li key={i}>{f}</li>)}</ul>
                 </div>
               )}
               
-              <p className="small-text muted">{result.method}</p>
+              {result.method && <p className="small-text muted">{result.method}</p>}
               
-              {result.gaps.length > 0 && (
+              {Boolean(result.gaps && result.gaps.length > 0) && (
                 <button className="button dark full space-top" onClick={() => {
-                  const skillsToLearn = result.gaps.filter(g => g.status !== 'Demonstrated').map(g => g.skill);
+                  const skillsToLearn = (result.gaps || []).filter(g => g.status !== 'Demonstrated' && (g.status as string) !== 'Self-reported').map(g => g.skill);
                   onPlan(title, skillsToLearn.length ? skillsToLearn : result.gaps.map(g => g.skill));
                 }}>
                   Turn these gaps into a plan <ArrowRight size={18}/>

@@ -1,6 +1,8 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { jobSchema } from '@/lib/validation';
 import { callGemini } from '@/lib/ai';
+import { analyseJob } from '@/lib/domain';
+import { roles } from '@/lib/catalogue';
 import * as cheerio from 'cheerio';
 
 export async function POST(req: Request) {
@@ -25,18 +27,52 @@ export async function POST(req: Request) {
       }
     }
     
-    if (!jobText || jobText.length < 30) throw new ApiError(400, 'Job description too short.');
+    if (!jobText || jobText.length < 30) throw new ApiError(400, 'Job description too short. Please provide at least 30 characters.');
 
     const profile = parsed.data.profile;
-    const profileContext = profile ? `User Profile:
-- Skills: ${profile.skills.join(', ')}
-- Other Skills: ${profile.extractedSkills}
-- Experience: ${profile.experience}
-- Projects: ${profile.projects}
-- Certifications: ${profile.certifications}
-- Education: ${profile.qualification}` : 'No profile provided.';
+    const userSkills = profile?.skills || [];
 
-    const systemPrompt = `You are an expert career advisor. Analyze the provided job description and compare it to the user's profile.
+    // Helper for deterministic skill-matching fallback
+    const getDeterministicFallback = () => {
+      const det = analyseJob(jobText, userSkills);
+      const matchedRole = roles.find(r => 
+        r.description.trim() === jobText.trim() || 
+        jobText.toLowerCase().includes(r.title.toLowerCase())
+      );
+      const title = matchedRole ? matchedRole.title : 'Target Role';
+      const company = matchedRole ? 'Example Role Brief' : '';
+
+      return {
+        title,
+        company,
+        gaps: det.gaps.map(g => {
+          const isDemonstrated = g.status === 'Self-reported';
+          return {
+            skill: g.skill,
+            status: isDemonstrated ? 'Demonstrated' : 'Learn Next',
+            evidence: g.evidence,
+            optional: g.optional,
+            importance: g.optional 
+              ? 'Preferred skill mentioned in job requirements' 
+              : 'Required skill identified from role description'
+          };
+        }),
+        formal: det.formal,
+        method: 'Keyword-assisted analysis (Guided Fallback). Review the original wording; nuanced requirements may need correction.'
+      };
+    };
+
+    // Attempt Gemini AI analysis if configured
+    try {
+      const profileContext = profile ? `User Profile:
+- Skills: ${profile.skills.join(', ')}
+- Other Skills: ${profile.extractedSkills || 'None'}
+- Experience: ${profile.experience || 'None'}
+- Projects: ${profile.projects || 'None'}
+- Certifications: ${profile.certifications || 'None'}
+- Education: ${profile.qualification || 'None'}` : 'No profile provided.';
+
+      const systemPrompt = `You are an expert career advisor. Analyze the provided job description and compare it to the user's profile.
 Extract the Job Title and Company (if available).
 Extract the required and preferred skills. 
 Categorize the required and preferred skills into exactly these three categories based on the user's profile:
@@ -53,33 +89,42 @@ Return a JSON object with:
 
 Be realistic. If the user doesn't have evidence, put it in Learn Next or Improve.`;
 
-    const schema = {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        company: { type: "string" },
-        gaps: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              skill: { type: "string" },
-              status: { type: "string", enum: ["Demonstrated", "Improve", "Learn Next"] },
-              evidence: { type: "string" },
-              optional: { type: "boolean" },
-              importance: { type: "string" }
-            },
-            required: ["skill", "status", "evidence", "optional", "importance"]
-          }
+      const schema = {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          company: { type: "string" },
+          gaps: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string" },
+                status: { type: "string", enum: ["Demonstrated", "Improve", "Learn Next"] },
+                evidence: { type: "string" },
+                optional: { type: "boolean" },
+                importance: { type: "string" }
+              },
+              required: ["skill", "status", "evidence", "optional", "importance"]
+            }
+          },
+          formal: { type: "array", items: { type: "string" } },
+          method: { type: "string" }
         },
-        formal: { type: "array", items: { type: "string" } },
-        method: { type: "string" }
-      },
-      required: ["title", "company", "gaps", "formal", "method"]
-    };
+        required: ["title", "company", "gaps", "formal", "method"]
+      };
 
-    const data = await callGemini(systemPrompt, `Job Description:\n${jobText}\n\n${profileContext}`, schema);
-    return Response.json(data);
+      const data = await callGemini(systemPrompt, `Job Description:\n${jobText}\n\n${profileContext}`, schema);
+      if (data && typeof data === 'object' && Array.isArray((data as any).gaps) && (data as any).gaps.length > 0) {
+        return Response.json(data);
+      }
+      // If AI returned empty gaps or unexpected object, fall back to deterministic
+      console.warn('AI returned empty or unexpected structure; using deterministic fallback.');
+      return Response.json(getDeterministicFallback());
+    } catch (aiErr) {
+      console.warn('Gemini analysis unavailable or failed, falling back to deterministic matching:', aiErr);
+      return Response.json(getDeterministicFallback());
+    }
   } catch (e) {
     return failure(e);
   }
