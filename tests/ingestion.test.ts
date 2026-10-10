@@ -49,16 +49,29 @@ test('needs_information record with valid fee does not pass as within-budget',()
   assert.equal(a.cost,null,'needs_information cost must be null');
 });
 
-// ── 4. source_backed records still pass budget check normally ────────────
-test('source_backed NUST record passes budget check with sufficient budget',()=>{
-  const u=universities[0]; // nust-civil: fee=216750, mandatory=5000
+// ── 4. live_refreshed & manual_snapshot records pass budget check normally ──
+test('live_refreshed NUST record passes budget check with sufficient budget',()=>{
+  const u=universities[0]; // nust-civil: fee=216750, mandatory=5000, status=live_refreshed
+  assert.equal(u.verificationStatus,'live_refreshed');
   const a=assessUniversity(u,{...emptyProfile,budget:300000,ssc:80,hssc:80,qualification:'FSc'});
-  // verificationStatus is undefined on catalogue entries → treated as source_backed
   assert.equal(a.budget,'Within semester budget');
   assert.equal(a.cost,221750);
 });
 
-test('source_backed NUST record fails budget check with insufficient budget',()=>{
+test('manual_snapshot record passes budget check with sufficient budget',()=>{
+  const manualU:University={
+    id:'test-manual',name:'Test U',short:'TU',city:'Lahore',
+    programme:'Test programme',degreeId:'civil',
+    url:'https://example.edu',fee:100000,mandatory:5000,
+    rule:'general',checked:'2026-10-10',
+    verificationStatus:'manual_snapshot',
+  };
+  const a=assessUniversity(manualU,{...emptyProfile,budget:200000});
+  assert.equal(a.budget,'Within semester budget');
+  assert.equal(a.cost,105000);
+});
+
+test('live_refreshed NUST record fails budget check with insufficient budget',()=>{
   const u=universities[0];
   const a=assessUniversity(u,{...emptyProfile,budget:200000});
   assert.equal(a.budget,'Above semester budget');
@@ -121,7 +134,7 @@ test('cron refresh endpoint rejects unauthorized requests when CRON_SECRET is se
     });
     const res = await GET(req);
     assert.equal(res.status, 401);
-    const body = await res.json();
+    const body = (await res.json()) as { error?: string };
     assert.equal(body.error, 'Unauthorized');
   } finally {
     if (origSecret !== undefined) process.env.CRON_SECRET = origSecret;

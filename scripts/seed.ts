@@ -14,11 +14,11 @@ async function upsert(table: string, rows: unknown[], onConflict?: string) {
   if (!rows.length) return;
   const { error } = await db.from(table).upsert(rows, { onConflict });
   if (error) {
-    console.warn(`Seed note for ${table}: ${error.message}`);
-    return;
+    throw new Error(`Seed failed for table "${table}": ${error.message}${error.hint ? ' - ' + error.hint : ''}`);
   }
-  console.log(`Seeded ${table}: ${rows.length}`);
+  console.log(`✓ Seeded ${table}: ${rows.length}`);
 }
+
 
 await upsert('skills', skillNames.map(name => ({ id: slug(name), name })), 'id');
 await upsert('degrees', degrees.map(d => ({ id: d.id, name: d.name, field: d.field, data: d })), 'id');
@@ -27,6 +27,8 @@ await upsert('careers', degrees.flatMap(d => d.roles.map((title, i) => ({ id: `$
 await upsert('career_skills', degrees.flatMap(d => d.roles.flatMap((_, i) => d.skills.map(s => ({ career_id: `${d.id}-${i}`, skill_id: slug(s) })))), 'career_id,skill_id');
 await upsert('resources', resources.map(r => ({ id: r.id, title: r.title, provider: r.provider, url: r.url, access_label: r.access, data: r })), 'id');
 await upsert('resource_skills', resources.flatMap(r => r.skills.map(s => ({ resource_id: r.id, skill_id: slug(s) }))), 'resource_id,skill_id');
+
+const dbStatus = (vs: string | undefined) => (vs === 'needs_information' ? 'needs_information' : 'source_backed');
 
 // Seed 50+ HEC-recognized Universities across all provinces
 await upsert(
@@ -41,7 +43,7 @@ await upsert(
           official_url: u.url,
           source_url: u.sourceUrl || u.feeUrl || u.url,
           last_verified_at: u.lastVerifiedAt || `${u.checked}T00:00:00.000Z`,
-          verification_status: u.verificationStatus || 'source_backed'
+          verification_status: dbStatus(u.verificationStatus)
         }
       ])
     ).values()
@@ -62,7 +64,7 @@ await upsert(
           name: u.city,
           source_url: u.sourceUrl || u.feeUrl || u.url,
           last_verified_at: u.lastVerifiedAt || `${u.checked}T00:00:00.000Z`,
-          verification_status: u.verificationStatus || 'source_backed'
+          verification_status: dbStatus(u.verificationStatus)
         }
       ])
     ).values()
@@ -79,7 +81,7 @@ await upsert(
     title: u.programme,
     source_url: u.sourceUrl || u.feeUrl || u.url,
     last_verified_at: u.lastVerifiedAt || `${u.checked}T00:00:00.000Z`,
-    verification_status: u.verificationStatus || 'source_backed'
+    verification_status: dbStatus(u.verificationStatus)
   })),
   'id'
 );
@@ -91,7 +93,7 @@ await upsert(
     academic_year: u.feeYear || '2026–27',
     source_url: u.feeUrl || u.url,
     checked_at: u.checked,
-    verified: u.verificationStatus === 'source_backed',
+    verified: u.verificationStatus !== 'needs_information',
     tuition_per_semester: u.fee,
     mandatory_per_semester: u.mandatory,
     rules: {
@@ -102,7 +104,7 @@ await upsert(
       notes: u.notes
     },
     last_verified_at: u.lastVerifiedAt || `${u.checked}T00:00:00.000Z`,
-    verification_status: u.verificationStatus || 'source_backed',
+    verification_status: dbStatus(u.verificationStatus),
     fee_currency: 'PKR',
     fee_period: 'semester',
     fee_mandatory_description: u.mandatory ? `PKR ${u.mandatory.toLocaleString()} mandatory semester charges` : null
@@ -117,5 +119,20 @@ await upsert(
   'job_id,skill_id'
 );
 
-console.log(`Catalogue seed complete with ${universities.length} programs across ${new Set(universities.map(u => u.name)).size} universities.`);
+console.log(`\nCatalogue seed complete with ${universities.length} programs across ${new Set(universities.map(u => u.name)).size} universities.`);
+
+console.log('\n--- VERIFICATION OUTPUT ---');
+const { count: uniCount } = await db.from('universities').select('*', { count: 'exact', head: true });
+console.log(`SELECT COUNT(*) FROM universities; -> ${uniCount}`);
+
+const { count: cycleCount } = await db.from('admission_cycles').select('*', { count: 'exact', head: true });
+console.log(`SELECT COUNT(*) FROM admission_cycles; -> ${cycleCount}`);
+
+const { data: sampleUnis } = await db
+  .from('universities')
+  .select('id, name, source_url, last_verified_at, verification_status')
+  .limit(5);
+console.log('\nSELECT id, name, source_url, last_verified_at, verification_status FROM universities LIMIT 5;');
+console.table(sampleUnis);
+
 

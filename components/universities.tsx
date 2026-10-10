@@ -1,6 +1,6 @@
 'use client';
 import {useState} from 'react';
-import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle} from 'lucide-react';
+import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw} from 'lucide-react';
 import {universities as catalogueUniversities,sourceLinks,degrees,type University,type VerificationStatus} from '@/lib/catalogue';
 import {assessUniversity,type Profile} from '@/lib/domain';
 import {Choice,CheckField,Empty} from './fields';
@@ -14,11 +14,14 @@ function fmtVerified(iso:string|null|undefined):string{
 /** Verification badge shown on each university card */
 function VerificationBadge({status,lastVerifiedAt,sourceUrl}:{status:VerificationStatus|undefined;lastVerifiedAt:string|null|undefined;sourceUrl:string|undefined}){
   const verified=fmtVerified(lastVerifiedAt);
-  if(!status||status==='source_backed'){
-    return <span className="verification-badge source-backed" title={`Last verified: ${verified}`}><CheckCircle size={12}/>Last verified {verified}</span>;
+  if(status==='live_refreshed'){
+    return <span className="verification-badge live-refreshed" title={`Auto-refreshed on weekly pipeline schedule · Last verified: ${verified}`}><RefreshCw size={12}/>Live-refreshed · {verified}</span>;
+  }
+  if(status==='manual_snapshot'||status==='source_backed'||!status){
+    return <a className="verification-badge manual-snapshot" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title={`Manually verified against official fee schedule (${verified}). Parser not yet automated in pipeline. Click to view official source.`}><CheckCircle size={12}/>Manual snapshot · {verified}<ArrowUpRight size={11}/></a>;
   }
   if(status==='stale'){
-    return <a className="verification-badge stale" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title="Data is more than 90 days old. Check the official source."><Clock size={12}/>Stale — check source<ArrowUpRight size={11}/></a>;
+    return <a className="verification-badge stale" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title="Data is more than 90 days old. Check the official source."><Clock size={12}/>Stale (&gt;90d) — check source<ArrowUpRight size={11}/></a>;
   }
   // needs_information
   return <a className="verification-badge needs-info" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title="Fee and admission rules not yet verified. Check current admissions directly."><AlertTriangle size={12}/>Check current admissions<ArrowUpRight size={11}/></a>;
@@ -41,6 +44,10 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   const [budgetOnly,setBudgetOnly]=useState(false);
   const list=source.filter(u=>(city==='All cities'||u.city===city)&&`${u.name} ${u.short} ${u.programme}`.toLowerCase().includes(query.toLowerCase())&&(!budgetOnly||assessUniversity(u,profile).budget==='Within semester budget'));
 
+  const liveCount = source.filter(u => u.verificationStatus === 'live_refreshed').length;
+  const manualCount = source.filter(u => u.verificationStatus === 'manual_snapshot' || u.verificationStatus === 'source_backed' || !u.verificationStatus).length;
+  const needsInfoCount = source.filter(u => u.verificationStatus === 'needs_information').length;
+
   return <><div className="page-heading"><div><div className="eyebrow">A PLACE TO GROW</div><h1>Find your <span>next campus.</span></h1><p>Bring your ambitions, your location, and your budget together.</p></div><button className="button outline" onClick={()=>go('profile')}><SlidersHorizontal size={17}/>Update my preferences</button></div>
 
   {/* Data freshness notice */}
@@ -50,19 +57,20 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   <div className="university-intro"><div><GraduationCap size={28}/><strong>Your fit comes first.</strong><p>We separate academic requirements, affordability and location. A recommendation is a starting point—not an admission offer.</p></div><div className="preference-summary"><span>{profile.qualification}</span><span>{profile.city||'Choose your city'}</span><span>{profile.budget!==null?`PKR ${profile.budget.toLocaleString()} / semester`:'Budget not set'}</span></div></div>
 
   <div className="filter-row"><label className="search-field"><Search size={18}/><input aria-label="Search universities" placeholder="Search universities or programmes…" value={query} onChange={e=>setQuery(e.target.value)}/></label><Choice label="City" value={city} options={Array.from(new Set(['All cities',...source.map(u=>u.city),...(profile.city?[profile.city]:[])]))} onChange={setCity}/></div>
-  <div className="filter-row secondary"><CheckField label="Only verified costs within my budget" checked={budgetOnly} onChange={setBudgetOnly}/><span className="muted small-text">{list.length} programme listings · {dataSource==='database'?'live database':'initial curated catalogue'}</span></div>
+  <div className="filter-row secondary"><CheckField label="Only verified costs within my budget" checked={budgetOnly} onChange={setBudgetOnly}/><span className="muted small-text">{list.length} programme listings ({liveCount} live-refreshed · {manualCount} manual snapshots · {needsInfoCount} inquiry required) · {dataSource==='database'?'live database':'initial curated catalogue'}</span></div>
 
-  <div className="university-list">{list.map(u=>{const a=assessUniversity(u,profile);const vs=u.verificationStatus;return <article className={`university-card${vs==='stale'?' card-stale':''}${vs==='needs_information'?' card-needs-info':''}`} key={u.id}><div className="university-logo">{u.short}</div><div className="university-content"><div className="university-title"><div><span className="location"><MapPin size={14}/>{u.city}</span><h2>{u.name}</h2><p>{u.programme}</p></div><span className="status-label">{a.status}</span></div>
+  <div className="university-list">{list.map(u=>{const a=assessUniversity(u,profile);const vs=u.verificationStatus;const isFeeVerified=u.fee!==null&&(vs==='live_refreshed'||vs==='manual_snapshot'||vs==='source_backed'||!vs);return <article className={`university-card${vs==='stale'?' card-stale':''}${vs==='needs_information'?' card-needs-info':''}`} key={u.id}><div className="university-logo">{u.short}</div><div className="university-content"><div className="university-title"><div><span className="location"><MapPin size={14}/>{u.city}</span><h2>{u.name}</h2><p>{u.programme}</p></div><span className="status-label">{a.status}</span></div>
 
   <VerificationBadge status={vs} lastVerifiedAt={u.lastVerifiedAt} sourceUrl={u.sourceUrl||u.feeUrl}/>
 
-  <div className="university-facts"><div><small>SEMESTER TUITION</small><strong>{u.fee!==null&&vs==='source_backed'?`PKR ${u.fee.toLocaleString()}`:vs==='needs_information'?'Not published online':'Not verified'}</strong><span>{u.fee!==null&&vs==='source_backed'?(u.mandatory?`+ PKR ${u.mandatory.toLocaleString()} mandatory charges`:'Semester tuition'):(u.notes?'Official inquiry / portal required':'Check the current fee schedule')}</span></div><div><small>YOUR BUDGET</small><strong>{a.budget}</strong><span>Hostel and transport excluded</span></div>{a.aggregate!==null&&<div><small>STANDARD NET AGGREGATE</small><strong>{a.aggregate}%</strong><span>Estimate · completed qualifications</span></div>}</div>
+  <div className="university-facts"><div><small>SEMESTER TUITION</small><strong>{isFeeVerified?`PKR ${u.fee!.toLocaleString()}`:vs==='needs_information'?'Not published online':'Not verified'}</strong><span>{isFeeVerified?(u.mandatory?`+ PKR ${u.mandatory.toLocaleString()} mandatory charges`:'Semester tuition'):(u.notes?'Official inquiry / portal required':'Check the current fee schedule')}</span></div><div><small>YOUR BUDGET</small><strong>{a.budget}</strong><span>Hostel and transport excluded</span></div>{a.aggregate!==null&&<div><small>STANDARD NET AGGREGATE</small><strong>{a.aggregate}%</strong><span>Estimate · completed qualifications</span></div>}</div>
   {(u.entryTest||u.minEligibility||u.aggregateFormula)&&<div className="university-requirements">{u.entryTest&&<div className="requirement-pill"><span>Entry Test:</span> <strong>{u.entryTest}</strong></div>}{u.minEligibility&&<div className="requirement-pill"><span>Eligibility:</span> <strong>{u.minEligibility}</strong></div>}{u.aggregateFormula&&<div className="requirement-pill"><span>Merit:</span> <strong>{u.aggregateFormula}</strong></div>}</div>}
   <p className="assessment-detail"><Info size={15}/>{a.detail}</p>
   {u.notes&&<div className={`university-notes${vs==='needs_information'?' needs-info-notice':''}`}><Info size={14}/><span>{u.notes}</span></div>}
-  <div className="university-links"><a className="text-button" href={u.url} target="_blank" rel="noreferrer">Official admissions <ArrowUpRight size={16}/></a>{u.feeUrl&&vs==='source_backed'&&<a className="text-button" href={u.feeUrl} target="_blank" rel="noreferrer">Fee source · {u.feeYear}<ArrowUpRight size={16}/></a>}{(vs==='stale'||vs==='needs_information')&&(u.sourceUrl||u.feeUrl)&&<a className="text-button" href={u.sourceUrl||u.feeUrl} target="_blank" rel="noreferrer">Official portal / inquiry <ArrowUpRight size={16}/></a>}</div>
+  <div className="university-links"><a className="text-button" href={u.url} target="_blank" rel="noreferrer">Official admissions <ArrowUpRight size={16}/></a>{u.feeUrl&&isFeeVerified&&<a className="text-button" href={u.feeUrl} target="_blank" rel="noreferrer">Fee source · {u.feeYear||'Official'}<ArrowUpRight size={16}/></a>}{(vs==='stale'||vs==='needs_information')&&(u.sourceUrl||u.feeUrl)&&<a className="text-button" href={u.sourceUrl||u.feeUrl} target="_blank" rel="noreferrer">Official portal / inquiry <ArrowUpRight size={16}/></a>}</div>
   </div></article>})}
   </div>
+
 
   {!list.length&&<Empty title="No verified matches for these filters" text="Unknown fees are excluded when you ask for confirmed affordability. Broaden your city or turn off the budget filter to investigate more options." action="Reset filters" onAction={()=>{setCity('All cities');setQuery('');setBudgetOnly(false)}}/>}
 

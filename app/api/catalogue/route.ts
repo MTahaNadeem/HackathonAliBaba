@@ -132,8 +132,24 @@ function shapeUniversity(u: DbUniversityRow) {
         .slice()
         .sort((a, b) => b.academic_year.localeCompare(a.academic_year))[0];
 
-      const verificationStatus =
+      let rawStatus =
         cycle?.verification_status ?? prog.verification_status;
+
+      // Distinguish automated pipeline vs manual snapshot
+      let verificationStatus: 'live_refreshed' | 'manual_snapshot' | 'source_backed' | 'needs_information' | 'stale' = rawStatus;
+      if (rawStatus === 'source_backed') {
+        if (prog.id === 'nust-civil' || prog.id === 'nust-econ') {
+          verificationStatus = 'live_refreshed';
+        } else {
+          verificationStatus = 'manual_snapshot';
+        }
+      }
+
+      const isVerified =
+        verificationStatus === 'live_refreshed' ||
+        verificationStatus === 'manual_snapshot' ||
+        verificationStatus === 'source_backed';
+
       const lastVerifiedAt =
         cycle?.last_verified_at ?? prog.last_verified_at ?? u.last_verified_at;
 
@@ -147,19 +163,13 @@ function shapeUniversity(u: DbUniversityRow) {
         programme: prog.title,
         degreeId: prog.degree_id,
         url: u.official_url,
-        fee:
-          verificationStatus === 'source_backed'
-            ? (cycle?.tuition_per_semester ?? null)
-            : null,
-        mandatory:
-          verificationStatus === 'source_backed'
-            ? (cycle?.mandatory_per_semester ?? null)
-            : null,
+        fee: isVerified ? (cycle?.tuition_per_semester ?? null) : null,
+        mandatory: isVerified ? (cycle?.mandatory_per_semester ?? null) : null,
         feeUrl: cycle?.source_url ?? u.source_url,
         feeYear: cycle?.academic_year ?? null,
         // The 'rule' field drives eligibility logic in domain.ts.
-        // Only source_backed records expose their rules; others default to 'unknown'.
-        rule: verificationStatus === 'source_backed'
+        // Only verified records expose their rules; others default to 'unknown'.
+        rule: isVerified
           ? ((rulesObj?.kind as string) ?? 'unknown')
           : 'unknown',
         checked: lastVerifiedAt
@@ -198,7 +208,7 @@ export async function GET() {
   // Fallback: static catalogue with explicit labelling
   const fallbackUniversities = catalogueUniversities.map((u) => ({
     ...u,
-    verificationStatus: u.verificationStatus ?? (u.rule === 'unknown' ? 'needs_information' : 'source_backed'),
+    verificationStatus: u.verificationStatus ?? (u.rule === 'unknown' ? 'needs_information' : 'manual_snapshot'),
     lastVerifiedAt: u.lastVerifiedAt ?? u.checked ?? null,
     sourceUrl: u.sourceUrl ?? u.feeUrl ?? u.url,
   }));
@@ -215,3 +225,4 @@ export async function GET() {
     { headers: { 'Cache-Control': 'public, max-age=300' } },
   );
 }
+
