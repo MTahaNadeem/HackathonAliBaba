@@ -3,7 +3,9 @@ export type Profile={name:string;stage:string;qualification:string;subjects:stri
 export const emptyProfile:Profile={name:'',stage:'Choosing a degree',qualification:'FSc',subjects:[],interests:[],skills:[],city:'',budget:null,hours:5,ssc:null,hssc:null,equivalence:false,net:null,goal:'',relocate:false};
 export function recommend(p:Profile){return degrees.map(d=>{const interests=d.interests.filter(i=>p.interests.includes(i));const subjects=d.subjects.filter(i=>p.subjects.includes(i));return {...d,reasons:[...interests.map(i=>`You enjoy ${i.toLowerCase()}`),...subjects.map(i=>`Connects with ${i}`)],score:interests.length*2+subjects.length}}).sort((a,b)=>b.score-a.score)}
 export function assessUniversity(u:University,p:Profile){
- const cost=u.fee!==null&&u.mandatory!==null?u.fee+u.mandatory:null;
+ // stale and needs_information records must NEVER silently pass as verified costs.
+ const costVerified=!u.verificationStatus||u.verificationStatus==='source_backed';
+ const cost=costVerified&&u.fee!==null&&u.mandatory!==null?u.fee+u.mandatory:null;
  const budget=cost===null?'Costs need checking':p.budget===null?'Add your budget':cost<=p.budget?'Within semester budget':'Above semester budget';
  const base={budget,cost,aggregate:null as number|null};
  if(p.qualification==='Matric'||p.qualification==='O-levels')return {...base,status:'Next qualification needed',detail:'Explore higher-secondary/A-level pathways before assessing undergraduate admission.'};

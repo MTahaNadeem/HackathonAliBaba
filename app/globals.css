@@ -9,3 +9,30 @@
 @media(max-width:1000px){.jobs-layout{grid-template-columns:1fr}.role-list{display:grid;grid-template-columns:1fr 1fr}.university-intro{flex-direction:column;align-items:flex-start;gap:18px}.preference-summary{flex-direction:row;flex-wrap:wrap}.no-plan{flex-wrap:wrap}.no-plan>.button{margin-left:0}.university-card{padding:22px;gap:17px}.university-logo{width:53px;height:53px;font-size:13px}.form-grid.three{grid-template-columns:1fr 1fr}.current-direction{flex-wrap:wrap}.current-direction>.button{margin-left:64px}.plan-header h2{font-size:21px}}
 @media(max-width:700px){.desktop-sidebar{display:none!important}.degree-grid,.resource-grid{grid-template-columns:1fr}.filter-row{flex-wrap:wrap}.filter-row .search-field{flex-basis:100%}.filter-row.secondary{gap:12px}.chip{font-size:12px;padding:9px 12px}.degree-banner{height:115px}.degree-body{padding:23px}.degree-tagline{min-height:0}.degree-bottom .text-button,.degree-bottom .check-field{font-size:13px}.role-list{grid-template-columns:1fr}.university-card{flex-direction:column;padding:22px}.university-facts{gap:20px}.university-links>span{margin-left:0;width:100%}.source-strip{gap:12px;flex-direction:column}.form-section{padding:23px 20px}.form-grid,.form-grid.three{grid-template-columns:1fr}.form-save{flex-direction:column;align-items:stretch}.form-save .button{width:100%}.form-section-heading p{font-size:13px}.filter-row .field{width:100%}.coursecompass-dialog{padding:26px 22px!important}.detail-columns,.comparison-grid{grid-template-columns:1fr}.plan-header{flex-direction:column;align-items:flex-start;padding:25px}.plan-progress{width:100%}.plan-progress>strong{font-size:25px}.milestones{padding:4px 20px}.milestone{gap:12px}.milestone-number{width:30px;height:30px;font-size:11px}.milestone-title{flex-direction:column;gap:9px}.milestone-title h3{font-size:16px}.milestone-content .check-field{font-size:12px}.resource-link{padding:12px;font-size:13px}.plan-footnote{padding:5px 23px 24px}.no-plan{padding:23px;gap:16px}.no-plan h2{font-size:19px}.current-direction{padding:18px}.current-direction>.button{margin-left:0;width:100%}.floating-adviser{right:18px;bottom:18px;font-size:13px;padding:12px 16px}.sign-in-button{font-size:12px}.guest-pill{font-size:10px}.top-actions{gap:9px}.adviser-sheet{padding:24px 18px 12px!important}.chat-header [data-slot=sheet-title]{font-size:19px}.chat-message{font-size:14px}.chat-privacy p{font-size:11px}.analysis-panel{padding:21px}.analysis-action .button{width:100%}.gap-row{flex-wrap:wrap}.gap-status{max-width:none;margin-left:36px;text-align:left}.resource-card h3{min-height:0}.sidebar-note{margin-top:auto}.mobile-nav .sidebar-bottom{padding-top:10px}.university-title h2{font-size:18px}}
 @media(prefers-reduced-motion:reduce){.spin{animation:none}}
+
+/* ── Verification badges ─────────────────────────────────────────────── */
+.verification-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:550;border-radius:6px;padding:4px 9px;margin:8px 0 2px;line-height:1}
+.verification-badge.source-backed{background:#e4f5ec;color:#3a7a5c}
+.verification-badge.stale{background:#fff5e0;color:#9a6b00;border:1px solid #ffe0a0;text-decoration:none}
+.verification-badge.stale:hover{text-decoration:underline}
+.verification-badge.needs-info{background:#fdf0f0;color:#a03838;border:1px solid #f8d0d0;text-decoration:none}
+.verification-badge.needs-info:hover{text-decoration:underline}
+
+/* ── Card states for stale / needs_information ───────────────────────── */
+.card-stale{border-color:#ffe0a0!important;background:#fffdf5!important}
+.card-needs-info{border-color:#f8d0d0!important;background:#fffafa!important}
+
+/* ── Pipeline freshness notice ───────────────────────────────────────── */
+.freshness-notice{margin-bottom:20px}
+.freshness-notice.stale-notice{background:#fff8e8;border-color:#fce3a5;color:#7a5500}
+
+/* ── University requirements pills & notes ──────────────────────────── */
+.university-requirements{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.requirement-pill{display:inline-flex;align-items:center;gap:6px;background:#f3f7fb;border:1px solid #dbe6f2;border-radius:8px;padding:6px 11px;font-size:12px;color:#3b5678}
+.requirement-pill strong{font-weight:600;color:#1e385b}
+.requirement-pill span{color:#6c829e}
+.university-notes{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.6;color:#5a6e87;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 13px;margin:10px 0 6px}
+.university-notes svg{flex-shrink:0;margin-top:2px;color:#6b829e}
+.university-notes.needs-info-notice{background:#fff9f9;border-color:#f8d5d5;color:#8f3a3a}
+.university-notes.needs-info-notice svg{color:#a84040}
+
