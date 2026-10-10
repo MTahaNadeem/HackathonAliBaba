@@ -21,6 +21,15 @@ export default function CourseCompassApp(){
  async function saveProfile(p:Profile){setBusy(true);setProfile(p);try{const saved=await persist('/api/profile',p);setSync(saved?'Saved to account':'Guest session');toast.success(saved?'Profile saved.':'Preferences updated for this session.');go('dashboard')}catch(e){setSync('Unsaved changes');toast.error(e instanceof Error?e.message:'Profile was not saved.')}finally{setBusy(false)}}
  async function updatePlan(p:Plan){setPlan(p);try{const saved=await persist('/api/plans',p);setSync(saved?'Saved to account':'Guest session');if(saved)toast.success('Learning plan saved.')}catch(e){setSync('Unsaved changes');toast.error(e instanceof Error?e.message:'Plan was not saved.')}}
  function startPlan(goal:string,skills:string[]){const p=createPlan(goal,skills,profile.hours);void updatePlan(p);go('learning');toast.success(session?'Your learning plan is ready.':'Plan ready for this session. Download it to keep a copy.');}
+ useEffect(()=>{
+  const params=new URLSearchParams(window.location.search);
+  const skills=params.get('skills');
+  const source=params.get('source');
+  if(skills&&source==='extension'){
+   startPlan('Job Application (from Compass)',skills.split(','));
+   window.history.replaceState({},'',window.location.pathname+window.location.hash);
+  }
+ },[startPlan]);
  function selectGoal(d:Degree){const p={...profile,goal:d.id};setProfile(p);void persist('/api/profile',p).then(saved=>setSync(saved?'Saved to account':'Guest session')).catch(()=>{setSync('Unsaved changes');toast.error('Direction selected, but account save failed.')});toast.success(`${d.name} is your current direction.`);go('dashboard')}
  async function signOut(){await client?.auth.signOut();sessionRef.current=null;setSession(null);setRecovery(false);setProfile(emptyProfile);setPlan(null);setSync('Guest session');go('dashboard');toast.success('Signed out. You are back in a guest session.')}
  useEffect(()=>{type Registry={registerTool:(tool:{name:string;description:string;inputSchema:object;annotations:object;execute:(input:unknown)=>unknown},options:{signal:AbortSignal})=>unknown};const registry=(document as Document&{modelContext?:Registry}).modelContext;if(!registry)return;const controller=new AbortController();try{Promise.resolve(registry.registerTool({name:'navigate_coursecompass',description:'Navigate to a CourseCompass AI workspace view. Does not change student records.',inputSchema:{type:'object',properties:{view:{type:'string',enum:[...nav.map(n=>n.id),'profile']}},required:['view'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:(input)=>{const v=(input as {view?:unknown})?.view;if(typeof v!=='string'||![...nav.map(n=>n.id),'profile'].includes(v))throw new Error('Unknown CourseCompass AI view');go(v);return{view:v}}},{signal:controller.signal})).catch(()=>{});}catch{}return()=>controller.abort()},[go]);

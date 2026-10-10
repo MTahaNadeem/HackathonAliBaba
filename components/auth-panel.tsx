@@ -104,9 +104,10 @@ export default function AuthPanel({
   }
 
   if (!client) {
+    console.error('Supabase configuration is missing. Add your Supabase URL and anon key to .env.local, then restart.');
     return (
       <div className="inline-note">
-        Account sync is being connected. Add your Supabase URL and anon key to `.env.local`, then restart. You can still explore as a guest; guest changes are not saved across visits.
+        Sign-in is temporarily unavailable. Please try again later. You can still explore as a guest; guest changes are not saved across visits.
       </div>
     );
   }

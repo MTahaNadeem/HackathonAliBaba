@@ -14,9 +14,9 @@
  * Change this URL to point to your deployed web app.
  * It is passed missing skills as query params when the user
  * clicks "Build Learning Plan".
- * e.g. https://yourapp.vercel.app/?skills=React,Docker&source=extension
+ * e.g. http://localhost:3000/?skills=React,Docker&source=extension
  */
-const COMPASS_WEB_APP_URL = 'https://courseai-compass.vercel.app/';
+const COMPASS_WEB_APP_URL = 'http://localhost:3000/';
 
 /* ══════════════════════════════════════════════════
    SKILL DICTIONARY
