@@ -107,11 +107,12 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
 
   if (session && !showGuide) {
     const goal = degrees.find(d => d.id === profile.goal);
-    const completed = plan?.milestones.filter(m => m.done).length ?? 0;
+    const isMilestoneDone = (m: any) => Boolean(m.done || m.state === 'Demonstrated');
+    const completed = plan?.milestones.filter(isMilestoneDone).length ?? 0;
     const total = plan?.milestones.length ?? 0;
     const ringPct = total > 0 ? Math.round((completed / total) * 100) : 0;
     const hasPlan = Boolean(plan && total > 0);
-    const nextMilestone = plan?.milestones.find(m => !m.done);
+    const nextMilestone = plan?.milestones.find(m => !isMilestoneDone(m));
     const displayName = profile.name?.trim();
     const cityFilter = profile.relocate ? null : profile.city || null;
     const sideUnis = catalogueUniversities.filter(u => !cityFilter || u.city === cityFilter).slice(0, 5);
@@ -187,7 +188,7 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
                 <StatBlock
                   label="HOURS / WEEK"
                   value={`${profile.hours}h`}
-                  sub={hasPlan ? `Plan: ${plan!.hoursPerWeek}h / week` : 'Your weekly commitment'}
+                  sub={hasPlan && plan?.hoursPerWeek ? `Plan: ${plan.hoursPerWeek}h / week` : 'Your weekly commitment'}
                 />
                 <StatBlock
                   label="CHOSEN DIRECTION"
@@ -270,7 +271,7 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
                 </div>
               </div>
               <div className="db-next-meta">
-                <span className="time-pill"><Clock3 size={13} />{nextMilestone.hours}h estimated</span>
+                <span className="time-pill"><Clock3 size={13} />{nextMilestone.hours ?? 4}h estimated</span>
                 <button className="button dark" onClick={() => go('learning')}>Open roadmap <ArrowRight size={16} /></button>
               </div>
             </div>

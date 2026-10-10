@@ -50,7 +50,7 @@ test('Dashboard preserves connected path map, adviser card, and exploration tool
 
   // Adviser card
   assert.match(html, /MEET YOUR CAREER COMPANION/);
-  assert.match(html, /Let’s find your direction/);
+  assert.match(html, /Let(?:’|&#x27;|')s find your direction/);
 
   // Toolkit
   assert.match(html, /A few ways forward/);
@@ -110,19 +110,21 @@ test('Personalized Dashboard renders welcome section, journeys, quick actions an
   assert.match(html, /Pick up where you left off and take your next step forward\./);
   assert.match(html, /student@example\.com/);
 
-  // Continue where you left off
-  assert.match(html, /Continue where you left off/);
+  // Roadmap progress card
+  assert.match(html, /Roadmap progress/);
   assert.match(html, /Your path to Computer Science/);
-  assert.match(html, /1 of 2 steps completed/);
-  assert.match(html, /Resume my roadmap/);
+  assert.match(html, /1\/2 steps/);
+  assert.match(html, /Resume roadmap/);
 
-  // Your journey: distinct Education and Career journeys
-  assert.match(html, /Education Journey/);
-  assert.match(html, /Career Journey/);
+  // Stats and programme finder
+  assert.match(html, /ROADMAP MILESTONES/);
+  assert.match(html, /SKILLS REPORTED/);
+  assert.match(html, /Programmes in Lahore/);
   assert.match(html, /Computer Science/);
-  assert.match(html, /PKR 250,000 \/ semester/);
-  assert.match(html, /Find University Programs/);
-  assert.match(html, /Explore Careers &amp; Analyze Job/);
+
+  // Up next milestone
+  assert.match(html, /Up next on your roadmap/);
+  assert.match(html, /Build evidence of sql/);
 
   // Quick actions: all 6 shortcuts
   assert.match(html, /Quick actions/);
@@ -132,11 +134,6 @@ test('Personalized Dashboard renders welcome section, journeys, quick actions an
   assert.match(html, /Analyze a target job/);
   assert.match(html, /View my roadmap/);
   assert.match(html, /Edit my profile/);
-
-  // Progress overview: real data
-  assert.match(html, /Progress overview/);
-  assert.match(html, /1 \/ 2/); // Roadmap milestones
-  assert.match(html, /2/); // Skills reported
 });
 
 test('Personalized Dashboard shows helpful onboarding state when signed in as new user with no saved data', () => {
@@ -174,13 +171,11 @@ test('Personalized Dashboard shows helpful onboarding state when signed in as ne
   // Neutral welcome
   assert.match(html, /Welcome back!/);
   assert.match(html, /Pick up where you left off and take your next step forward\./);
+  assert.match(html, /newuser@example\.com/);
 
-  // Onboarding continue state
-  assert.match(html, /Start shaping your next chapter/);
+  // Empty state for roadmap and programmes
+  assert.match(html, /No active roadmap/);
   assert.match(html, /Explore degree paths/);
-  assert.match(html, /Analyze a job brief/);
-
-  // Informative empty state for progress overview
-  assert.match(html, /No activity saved yet/);
+  assert.match(html, /Programme finder/);
 });
 
