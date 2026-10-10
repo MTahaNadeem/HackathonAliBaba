@@ -3,6 +3,7 @@ import {assessUniversity,emptyProfile} from '../lib/domain';
 import {universities} from '../lib/catalogue';
 import type {University} from '../lib/catalogue';
 import {parseNustFeePage} from '../lib/ingestion/parsers/nust-fee-page';
+import {GET} from '../app/api/ingestion/refresh/route';
 
 // ── 1. Parse failure must never overwrite existing DB value ──────────────
 test('parse failure returns ok:false and does not produce fee data',()=>{
@@ -108,4 +109,22 @@ test('a failed academic minimum wins over high test scores',()=>{
 test('NET formula uses percentages and source weights',()=>{
   const r=assessUniversity(universities[1],{...emptyProfile,ssc:90,hssc:80,net:75});
   assert.equal(r.aggregate,77.25);
+});
+
+// ── 7. Cron / scheduled trigger endpoint behavior ──────────────────────
+test('cron refresh endpoint rejects unauthorized requests when CRON_SECRET is set', async () => {
+  const origSecret = process.env.CRON_SECRET;
+  try {
+    process.env.CRON_SECRET = 'secret_cron_token_test';
+    const req = new Request('http://localhost/api/ingestion/refresh', {
+      headers: { authorization: 'Bearer wrong_token' },
+    });
+    const res = await GET(req);
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.error, 'Unauthorized');
+  } finally {
+    if (origSecret !== undefined) process.env.CRON_SECRET = origSecret;
+    else delete process.env.CRON_SECRET;
+  }
 });
