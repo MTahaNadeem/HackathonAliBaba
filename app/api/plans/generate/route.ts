@@ -1,7 +1,7 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { callGemini } from '@/lib/ai';
 import { z } from 'zod';
-import { type Plan } from '@/lib/domain';
+import { type Plan, createPlan } from '@/lib/domain';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
@@ -16,7 +16,8 @@ export async function POST(req: Request) {
     
     const { goal, skills } = parsed.data;
     
-    const systemPrompt = `You are a career learning path generator. The user wants to prepare for the role: "${goal}".
+    try {
+      const systemPrompt = `You are a career learning path generator. The user wants to prepare for the role: "${goal}".
 They need to learn or improve the following skills: ${skills.join(', ')}.
 
 For each skill, generate a milestone with:
@@ -33,69 +34,77 @@ Also, generate interview preparation for this specific job role:
 
 Output in strict JSON format.`;
 
-    const schema = {
-      type: "object",
-      properties: {
-        milestones: {
-          type: "array",
-          items: {
+      const schema = {
+        type: "object",
+        properties: {
+          milestones: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                skill: { type: "string" },
+                title: { type: "string" },
+                startLearning: {
+                  type: "object",
+                  properties: { title: { type: "string" }, url: { type: "string" }, provider: { type: "string" }, level: { type: "string" }, cost: { type: "string" } },
+                  required: ["title", "url", "provider", "level", "cost"]
+                },
+                structuredLearning: {
+                  type: "object",
+                  properties: { title: { type: "string" }, url: { type: "string" }, provider: { type: "string" }, level: { type: "string" }, cost: { type: "string" } },
+                  required: ["title", "url", "provider", "level", "cost"]
+                },
+                practice: { type: "string" },
+                proveSkill: { type: "string" }
+              },
+              required: ["skill", "title", "startLearning", "structuredLearning", "practice", "proveSkill"]
+            }
+          },
+          interviewPrep: {
             type: "object",
             properties: {
-              skill: { type: "string" },
-              title: { type: "string" },
-              startLearning: {
-                type: "object",
-                properties: { title: { type: "string" }, url: { type: "string" }, provider: { type: "string" }, level: { type: "string" }, cost: { type: "string" } },
-                required: ["title", "url", "provider", "level", "cost"]
-              },
-              structuredLearning: {
-                type: "object",
-                properties: { title: { type: "string" }, url: { type: "string" }, provider: { type: "string" }, level: { type: "string" }, cost: { type: "string" } },
-                required: ["title", "url", "provider", "level", "cost"]
-              },
-              practice: { type: "string" },
-              proveSkill: { type: "string" }
+              technical: { type: "array", items: { type: "object", properties: { question: { type: "string" }, hint: { type: "string" }, answer: { type: "string" } }, required: ["question", "hint", "answer"] } },
+              behavioral: { type: "array", items: { type: "object", properties: { question: { type: "string" }, hint: { type: "string" }, answer: { type: "string" } }, required: ["question", "hint", "answer"] } },
+              resumeChecklist: { type: "array", items: { type: "string" } },
+              applicationChecklist: { type: "array", items: { type: "string" } }
             },
-            required: ["skill", "title", "startLearning", "structuredLearning", "practice", "proveSkill"]
+            required: ["technical", "behavioral", "resumeChecklist", "applicationChecklist"]
           }
         },
-        interviewPrep: {
-          type: "object",
-          properties: {
-            technical: { type: "array", items: { type: "object", properties: { question: { type: "string" }, hint: { type: "string" }, answer: { type: "string" } }, required: ["question", "hint", "answer"] } },
-            behavioral: { type: "array", items: { type: "object", properties: { question: { type: "string" }, hint: { type: "string" }, answer: { type: "string" } }, required: ["question", "hint", "answer"] } },
-            resumeChecklist: { type: "array", items: { type: "string" } },
-            applicationChecklist: { type: "array", items: { type: "string" } }
-          },
-          required: ["technical", "behavioral", "resumeChecklist", "applicationChecklist"]
-        }
-      },
-      required: ["milestones", "interviewPrep"]
-    };
+        required: ["milestones", "interviewPrep"]
+      };
 
-    const result = await callGemini(systemPrompt, 'Generate the plan now.', schema);
-    
-    const plan: Plan = {
-      id: crypto.randomUUID(),
-      title: `Path to ${goal}`,
-      goal,
-      createdAt: new Date().toISOString(),
-      milestones: result.milestones.map((m: any) => ({
-        id: crypto.randomUUID(),
-        skill: m.skill,
-        title: m.title,
-        startLearning: m.startLearning,
-        structuredLearning: m.structuredLearning,
-        practice: m.practice,
-        proveSkill: m.proveSkill,
-        state: 'Not started',
-        notes: '',
-        evidenceUrl: ''
-      })),
-      interviewPrep: result.interviewPrep
-    };
+      const result = await callGemini(systemPrompt, 'Generate the plan now.', schema);
+      
+      if (result && Array.isArray((result as any).milestones) && (result as any).milestones.length > 0) {
+        const plan: Plan = {
+          id: crypto.randomUUID(),
+          title: `Path to ${goal}`,
+          goal,
+          createdAt: new Date().toISOString(),
+          milestones: (result as any).milestones.map((m: any) => ({
+            id: crypto.randomUUID(),
+            skill: m.skill,
+            title: m.title,
+            startLearning: m.startLearning,
+            structuredLearning: m.structuredLearning,
+            practice: m.practice,
+            proveSkill: m.proveSkill,
+            state: 'Not started',
+            notes: '',
+            evidenceUrl: ''
+          })),
+          interviewPrep: (result as any).interviewPrep
+        };
 
-    return Response.json(plan);
+        return Response.json(plan);
+      }
+      throw new Error('Invalid AI response structure');
+    } catch (aiErr) {
+      console.warn('Gemini plan generation unavailable or failed; using deterministic fallback plan:', aiErr);
+      const fallbackPlan = createPlan(goal, skills, 5);
+      return Response.json(fallbackPlan);
+    }
   } catch (e) {
     return failure(e);
   }

@@ -10,7 +10,7 @@ export default function Learning({plan,profile,onUpdate,onCreate,go}:{plan:Plan|
   const [format,setFormat] = useState('All formats');
   const [search,setSearch] = useState('');
   
-  const done = plan?.milestones.filter(m => m.state === 'Demonstrated').length || 0;
+  const done = plan?.milestones.filter(m => m.state === 'Demonstrated' || Boolean(m.done)).length || 0;
   const total = plan?.milestones.length || 0;
   const goal = degrees.find(d => d.id === profile.goal);
   const list = resources.filter(r => (format === 'All formats' || r.format === format) && `${r.title} ${r.skills.join(' ')} ${r.provider}`.toLowerCase().includes(search.toLowerCase()));
@@ -38,9 +38,9 @@ export default function Learning({plan,profile,onUpdate,onCreate,go}:{plan:Plan|
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">SMALL STEPS. REAL PROGRESS.</div>
-          <h1>Build your <span>next chapter.</span></h1>
-          <p>A resource is a start. What you do with it makes the difference.</p>
+          <div className="eyebrow">SAVED ROADMAPS &amp; GOALS</div>
+          <h1>My <span>Roadmap.</span></h1>
+          <p>Track your academic direction and practical career learning milestones.</p>
         </div>
         {plan && <button className="button outline" onClick={download}><Download size={17}/>Download my plan</button>}
       </div>
@@ -60,65 +60,108 @@ export default function Learning({plan,profile,onUpdate,onCreate,go}:{plan:Plan|
           </div>
 
           <div className="milestones">
-            {plan.milestones.map((m, i) => (
-              <article className={`milestone ${m.state === 'Demonstrated' ? 'complete' : ''}`} key={m.id}>
-                <span className="milestone-number">{m.state === 'Demonstrated' ? <Check size={18}/> : String(i+1).padStart(2,'0')}</span>
-                <div className="milestone-content">
-                  <div className="milestone-title">
-                    <div>
-                      <span className="eyebrow">{m.skill}</span>
-                      <h3>{m.title}</h3>
+            {plan.milestones.map((m, i) => {
+              const resource = (m.resourceId ? resources.find(r => r.id === m.resourceId) : null)
+                || resources.find(r => r.skills.some(s => s.toLowerCase() === m.skill.toLowerCase()))
+                || resources.find(r => r.skills.includes(m.skill));
+              const isCompleted = m.state === 'Demonstrated' || Boolean(m.done);
+
+              return (
+                <article className={`milestone ${isCompleted ? 'complete' : ''}`} key={m.id}>
+                  <span className="milestone-number">{isCompleted ? <Check size={18}/> : String(i+1).padStart(2,'0')}</span>
+                  <div className="milestone-content">
+                    <div className="milestone-title">
+                      <div>
+                        <span className="eyebrow">{m.skill}</span>
+                        <h3>{m.title}</h3>
+                      </div>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <span className="time-pill"><Clock3 size={13}/>{m.hours ?? 4}h estimated</span>
+                        <select className="status-select" value={m.state || (m.done ? 'Demonstrated' : 'Not started')} onChange={e => {
+                          const s = e.target.value as MilestoneState;
+                          updateMilestone(m.id, { state: s, done: s === 'Demonstrated' });
+                        }}>
+                          <option value="Not started">Not started</option>
+                          <option value="Learning">Learning</option>
+                          <option value="Practiced">Practiced</option>
+                          <option value="Demonstrated">Demonstrated</option>
+                        </select>
+                      </div>
                     </div>
-                    <select className="status-select" value={m.state} onChange={e => updateMilestone(m.id, { state: e.target.value as MilestoneState })}>
-                      <option value="Not started">Not started</option>
-                      <option value="Learning">Learning</option>
-                      <option value="Practiced">Practiced</option>
-                      <option value="Demonstrated">Demonstrated</option>
-                    </select>
-                  </div>
-                  
-                  <div className="resources-grid">
-                    {m.startLearning && (
-                      <div className="resource-box">
-                        <strong>Start Learning</strong>
-                        <a href={m.startLearning.url} target="_blank" rel="noreferrer">
-                          <Video size={15}/> {m.startLearning.title}
-                        </a>
-                        <small>{m.startLearning.provider} · {m.startLearning.cost}</small>
+                    
+                    {(m.startLearning || m.structuredLearning) && (
+                      <div className="resources-grid">
+                        {m.startLearning && (
+                          <div className="resource-box">
+                            <strong>Start Learning</strong>
+                            <a href={m.startLearning.url} target="_blank" rel="noreferrer">
+                              <Video size={15}/> {m.startLearning.title}
+                            </a>
+                            <small>{m.startLearning.provider} · {m.startLearning.cost}</small>
+                          </div>
+                        )}
+                        {m.structuredLearning && (
+                          <div className="resource-box">
+                            <strong>Structured Course</strong>
+                            <a href={m.structuredLearning.url} target="_blank" rel="noreferrer">
+                              <BookOpen size={15}/> {m.structuredLearning.title}
+                            </a>
+                            <small>{m.structuredLearning.provider} · {m.structuredLearning.cost}</small>
+                          </div>
+                        )}
                       </div>
                     )}
-                    {m.structuredLearning && (
-                      <div className="resource-box">
-                        <strong>Structured Course</strong>
-                        <a href={m.structuredLearning.url} target="_blank" rel="noreferrer">
-                          <BookOpen size={15}/> {m.structuredLearning.title}
-                        </a>
-                        <small>{m.structuredLearning.provider} · {m.structuredLearning.cost}</small>
-                      </div>
+
+                    {resource && (
+                      <a className="resource-link" href={resource.url} target="_blank" rel="noreferrer" aria-label={`Open ${resource.title}`}>
+                        <BookOpen size={17} />
+                        <span>
+                          {resource.title}
+                          <small>
+                            {resource.provider} · {resource.access}
+                          </small>
+                        </span>
+                        <ArrowUpRight size={16} />
+                      </a>
                     )}
-                  </div>
 
-                  <div className="practice-task">
-                    <strong>1. Practice</strong>
-                    <p>{m.practice}</p>
-                    <strong>2. Prove your skill</strong>
-                    <p>{m.proveSkill}</p>
-                  </div>
-                  
-                  <div className="evidence-section">
-                    <label className="field">
-                      <span>Evidence / Project URL</span>
-                      <input type="url" placeholder="https://github.com/..." value={m.evidenceUrl} onChange={e => updateMilestone(m.id, { evidenceUrl: e.target.value })} />
-                    </label>
-                    <label className="field">
-                      <span>Personal Notes</span>
-                      <textarea rows={2} placeholder="What I learned, what I struggled with..." value={m.notes} onChange={e => updateMilestone(m.id, { notes: e.target.value })} />
-                    </label>
-                  </div>
+                    <div className="practice-task">
+                      <strong>Make it practical</strong>
+                      <p>{m.practice || resource?.practice || 'Complete a small practical task demonstrating this skill and request feedback.'}</p>
+                      {m.proveSkill && (
+                        <>
+                          <strong style={{marginTop: '10px', display: 'block'}}>Prove your skill</strong>
+                          <p>{m.proveSkill}</p>
+                        </>
+                      )}
+                    </div>
+                    
+                    <div className="evidence-section">
+                      <label className="field">
+                        <span>Evidence / Project URL</span>
+                        <input type="url" placeholder="https://github.com/..." value={m.evidenceUrl || ''} onChange={e => updateMilestone(m.id, { evidenceUrl: e.target.value })} />
+                      </label>
+                      <label className="field">
+                        <span>Personal Notes</span>
+                        <textarea rows={2} placeholder="What I learned, what I struggled with..." value={m.notes || ''} onChange={e => updateMilestone(m.id, { notes: e.target.value })} />
+                      </label>
+                    </div>
 
-                </div>
-              </article>
-            ))}
+                    <CheckField
+                      label="I completed the practice task"
+                      checked={isCompleted}
+                      onChange={v =>
+                        updateMilestone(m.id, {
+                          done: v,
+                          state: v ? 'Demonstrated' : 'Not started'
+                        })
+                      }
+                    />
+
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
           {plan.interviewPrep && (
