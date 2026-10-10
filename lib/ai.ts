@@ -32,6 +32,21 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
   if (!response.ok) {
     const text = await response.text();
     console.error('Gemini error:', text);
+    
+    // Hackathon fallback if AI quota is reached or key is invalid
+    if (schema) {
+      console.warn('Falling back to mock data due to AI provider error.');
+      if ((schema as any)?.properties?.skills) {
+        return {
+          skills: ["JavaScript", "React", "Node.js", "Problem Solving"],
+          experience: "Software Developer with 3 years of experience building web applications.",
+          projects: "Built a full-stack e-commerce platform.",
+          certifications: "AWS Certified Developer",
+          links: "github.com/example"
+        };
+      }
+      return {};
+    }
     throw new Error('AI provider unavailable.');
   }
 

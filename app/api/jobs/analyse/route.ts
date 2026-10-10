@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     const profile = parsed.data.profile;
     const profileContext = profile ? `User Profile:
 - Skills: ${profile.skills.join(', ')}
+- Other Skills: ${profile.extractedSkills}
 - Experience: ${profile.experience}
 - Projects: ${profile.projects}
 - Certifications: ${profile.certifications}
