@@ -1,7 +1,8 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { callGemini } from '@/lib/ai';
 import { z } from 'zod';
-const pdfParse = require('pdf-parse');
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +18,12 @@ export async function POST(req: Request) {
       if (!file) throw new ApiError(400, 'No file provided.');
       if (file.type === 'application/pdf') {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const parsed = await pdfParse(buffer);
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).DOMMatrix === 'undefined') {
+          (globalThis as any).DOMMatrix = class DOMMatrix {};
+        }
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: buffer });
+        const parsed = await parser.getText();
         text = parsed.text;
       } else {
         text = await file.text();
