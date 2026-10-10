@@ -59,7 +59,7 @@ interface IngestionStatus {
 }
 
 async function fetchFromDb(): Promise<{
-  universities: ReturnType<typeof shapeUniversity>[];
+  universities: ReturnType<typeof shapeUniversity>;
   ingestion: IngestionStatus;
   source: 'database';
 } | null> {
@@ -116,20 +116,22 @@ async function fetchFromDb(): Promise<{
   }
 
   return {
-    universities: (data as DbUniversityRow[]).map(shapeUniversity),
+    universities: (data as DbUniversityRow[]).flatMap(shapeUniversity),
     ingestion,
     source: 'database',
   };
 }
 
+const shortMap = new Map(catalogueUniversities.map((cu) => [cu.id, cu.short]));
+
 function shapeUniversity(u: DbUniversityRow) {
   // Flatten to match the University shape the client expects,
   // with added freshness fields.
-  return u.campuses.flatMap((campus) =>
-    campus.programmes.map((prog) => {
+  return (u.campuses || []).flatMap((campus) =>
+    (campus.programmes || []).map((prog) => {
       // Pick the latest (most recent academic_year) admission cycle
       const cycle = prog.admission_cycles
-        .slice()
+        ?.slice()
         .sort((a, b) => b.academic_year.localeCompare(a.academic_year))[0];
 
       let rawStatus =
@@ -155,16 +157,21 @@ function shapeUniversity(u: DbUniversityRow) {
 
       const rulesObj = cycle?.rules as Record<string, unknown> | undefined;
 
+      const tuitionNum =
+        cycle?.tuition_per_semester != null ? Number(cycle.tuition_per_semester) : null;
+      const mandatoryNum =
+        cycle?.mandatory_per_semester != null ? Number(cycle.mandatory_per_semester) : null;
+
       return {
         id: prog.id,
         name: u.name,
-        short: u.id.toUpperCase(),
+        short: shortMap.get(prog.id) || u.id.toUpperCase(),
         city: campus.city,
         programme: prog.title,
         degreeId: prog.degree_id,
         url: u.official_url,
-        fee: isVerified && typeof cycle?.tuition_per_semester === 'number' && !isNaN(cycle.tuition_per_semester) ? cycle.tuition_per_semester : null,
-        mandatory: isVerified && typeof cycle?.mandatory_per_semester === 'number' && !isNaN(cycle.mandatory_per_semester) ? cycle.mandatory_per_semester : null,
+        fee: isVerified && tuitionNum !== null && !isNaN(tuitionNum) ? tuitionNum : null,
+        mandatory: isVerified && mandatoryNum !== null && !isNaN(mandatoryNum) ? mandatoryNum : null,
         feeUrl: cycle?.source_url ?? u.source_url,
         feeYear: cycle?.academic_year ?? null,
         // The 'rule' field drives eligibility logic in domain.ts.
@@ -185,7 +192,7 @@ function shapeUniversity(u: DbUniversityRow) {
         notes: (rulesObj?.notes as string) ?? undefined,
       };
     }),
-  ).flat();
+  );
 }
 
 export async function GET() {

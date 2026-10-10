@@ -18,7 +18,8 @@ function VerificationBadge({status,lastVerifiedAt,sourceUrl}:{status:Verificatio
     return <span className="verification-badge live-refreshed" title={`Auto-refreshed on weekly pipeline schedule · Last verified: ${verified}`}><RefreshCw size={12}/>Live-refreshed · {verified}</span>;
   }
   if(status==='manual_snapshot'||status==='source_backed'||!status){
-    return <a className="verification-badge manual-snapshot" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title={`Manually verified against official fee schedule (${verified}). Parser not yet automated in pipeline. Click to view official source.`}><CheckCircle size={12}/>Manual snapshot · {verified}<ArrowUpRight size={11}/></a>;
+    const dateLabel = verified !== 'not yet verified' ? verified : 'verified';
+    return <a className="verification-badge manual-snapshot" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title={`Manually verified against official fee schedule (${dateLabel}). Parser not yet automated in pipeline. Click to view official source.`}><CheckCircle size={12}/>Manual snapshot · {dateLabel}<ArrowUpRight size={11}/></a>;
   }
   if(status==='stale'){
     return <a className="verification-badge stale" href={sourceUrl||'#'} target="_blank" rel="noreferrer" title="Data is more than 90 days old. Check the official source."><Clock size={12}/>Stale (&gt;90d) — check source<ArrowUpRight size={11}/></a>;
@@ -37,8 +38,9 @@ interface UniversitiesProps {
 }
 
 export default function Universities({profile,go,liveUniversities,dataSource,lastRunAt,lastRunOk}:UniversitiesProps){
-  // Prefer live DB universities; fall back to static catalogue
-  const source=liveUniversities?.length?liveUniversities:catalogueUniversities;
+  // Prefer live DB universities; fall back to static catalogue, defensively flattening
+  const rawSource = liveUniversities?.length ? liveUniversities : catalogueUniversities;
+  const source: University[] = (rawSource as (University | University[])[]).flat();
   const [city,setCity]=useState(profile.relocate?'All cities':profile.city||'All cities');
   const [query,setQuery]=useState('');
   const [budgetOnly,setBudgetOnly]=useState(false);
