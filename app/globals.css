@@ -106,3 +106,50 @@
 @media(prefers-reduced-motion:reduce){
   .primary-journey-card,.journey-cta-btn,.journey-icon-wrap{transition:none!important;transform:none!important}
 }
+
+/* ── Personalized Dashboard: Progress Ring + Stat Card Layout ──────────── */
+.db-progress-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:24px;align-items:start;margin-bottom:0}
+.db-ring-card,.db-uni-card{min-height:0}
+.db-ring-body{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.db-ring-center{display:flex;flex-direction:column;align-items:center;min-width:180px}
+
+/* Stat blocks */
+.db-stats-col{display:flex;flex-direction:column;gap:14px;flex:1;min-width:160px}
+.db-stat-block{display:flex;flex-direction:column;gap:3px;padding:14px 16px;background:#f6f9fc;border-radius:12px;border:1px solid var(--border)}
+.db-stat-label{font-size:10px;letter-spacing:1.2px;font-weight:700;color:#6d8199}
+.db-stat-value{font-size:22px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:var(--midnight);line-height:1.2;margin:2px 0}
+.db-stat-sub{font-size:12px;color:var(--secondary);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-stat-bar-track{height:4px;background:#dfe7f0;border-radius:4px;margin-top:7px;overflow:hidden}
+.db-stat-bar-fill{height:100%;border-radius:4px;transition:width 0.5s cubic-bezier(.16,1,.3,1)}
+
+/* University side list */
+.db-uni-list{display:flex;flex-direction:column;gap:0}
+.db-uni-item{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid #edf1f7;align-items:flex-start}
+.db-uni-item:last-child{border-bottom:0}
+.db-uni-logo{width:40px;height:40px;border:1px solid #dee7f1;border-radius:10px;display:grid;place-items:center;flex-shrink:0;font-size:11px;letter-spacing:-.3px;font-weight:800;background:#f3f7fb;color:#547398}
+.db-uni-info{flex:1;min-width:0}
+.db-uni-prog{display:block;font-size:12px;font-weight:600;color:#2f4a6b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-uni-name{display:block;font-size:11px;color:#607d99;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-uni-city{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#8aa3bc;margin-top:2px}
+.db-uni-budget{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;margin-top:6px}
+.db-uni-budget.budget-ok{background:#e5f5ee;color:#3a7a5c}
+.db-uni-budget.budget-neutral{background:#f2f5fa;color:#5d7696}
+.db-uni-budget.budget-high{background:#fff4f0;color:#a0553a}
+
+/* Up-next milestone card */
+.db-next-card{}
+.db-next-body{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.db-next-meta{display:flex;flex-direction:column;gap:12px;align-items:flex-end;min-width:140px;flex-shrink:0}
+
+/* Responsive overrides */
+@media(max-width:1200px){
+  .db-progress-grid{grid-template-columns:1fr}
+  .db-ring-body{gap:20px}
+}
+@media(max-width:700px){
+  .db-ring-body{flex-direction:column}
+  .db-ring-center{min-width:0;width:100%}
+  .db-next-body{flex-direction:column}
+  .db-next-meta{align-items:flex-start}
+  .db-progress-grid{gap:16px}
+}
