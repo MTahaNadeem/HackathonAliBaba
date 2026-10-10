@@ -2,11 +2,10 @@ import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { callGemini } from '@/lib/ai';
 import { z } from 'zod';
 
-<<<<<<< Updated upstream
 export const dynamic = 'force-dynamic';
-=======
+
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Polyfill canvas-related globals before loading pdf-parse
+  // Polyfill canvas-related globals before loading pdf-parse in Node runtime
   if (typeof (globalThis as any).DOMMatrix === 'undefined') {
     (globalThis as any).DOMMatrix = class DOMMatrix { constructor(..._args: any[]) {} };
   }
@@ -16,23 +15,17 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   if (typeof (globalThis as any).Path2D === 'undefined') {
     (globalThis as any).Path2D = class Path2D { constructor(..._args: any[]) {} };
   }
+
   try {
-    const req = eval('require');
-    const mod = req('pdf-parse');
-    let pdfParse = mod;
-    if (typeof mod === 'object' && typeof mod.PDFParse !== 'undefined') {
-      // For Mehmet Kozan's pdf-parse v2
-      console.warn('PDFParse class found, skipping real extraction to avoid Turbopack crash.');
-      throw new Error('Using fallback for v2 pdf-parse');
-    }
-    const parsed = await pdfParse(buffer);
-    return parsed.text;
+    const { PDFParse } = await import('pdf-parse');
+    const parser = new PDFParse({ data: buffer });
+    const parsed = await parser.getText();
+    return parsed.text || '';
   } catch (e) {
-    console.error('PDF parsing failed, falling back to mock text:', e);
-    return "MOCK_RESUME_TEXT: Syed Haseeb Badshah. Skills: React, Node.js, Python, PostgreSQL. Experience: 2 years building full stack applications.";
+    console.error('PDF parsing error:', e);
+    throw new ApiError(400, 'Could not read text from the PDF file. Please ensure it contains selectable text, or paste your resume text directly.');
   }
 }
->>>>>>> Stashed changes
 
 export async function POST(req: Request) {
   try {
@@ -47,17 +40,7 @@ export async function POST(req: Request) {
       if (!file) throw new ApiError(400, 'No file provided.');
       if (file.type === 'application/pdf') {
         const buffer = Buffer.from(await file.arrayBuffer());
-<<<<<<< Updated upstream
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).DOMMatrix === 'undefined') {
-          (globalThis as any).DOMMatrix = class DOMMatrix {};
-        }
-        const { PDFParse } = await import('pdf-parse');
-        const parser = new PDFParse({ data: buffer });
-        const parsed = await parser.getText();
-        text = parsed.text;
-=======
         text = await extractPdfText(buffer);
->>>>>>> Stashed changes
       } else {
         text = await file.text();
       }
