@@ -7,7 +7,6 @@ import {
   GraduationCap,
   BriefcaseBusiness,
   Sparkles,
-  Layers3,
   Check,
   Route,
   Clock3,
@@ -364,36 +363,6 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
           </article>
         </div>
       </section>
-      <div className="dashboard-grid">
-        <section className="journey-panel" aria-labelledby="path-heading">
-          <div className="panel-top">
-            <span className="light-label"><span className="status-dot" />YOUR PERSONAL PATH</span>
-            <span className="chapter">Chapter 01 / Explore</span>
-          </div>
-          <h2 id="path-heading">You don&apos;t need every answer.<br />Just your <em>next step.</em></h2>
-          <p>Connect what you enjoy with what you could become.</p>
-          <div className="path-map">
-            <div className="path-node"><span className="node-symbol"><GraduationCap size={25} /></span><small>DISCOVER</small><strong>A degree you love</strong></div>
-            <div className="path-link"><span /><ArrowRight size={16} /><span /></div>
-            <div className="path-node"><span className="node-symbol"><BriefcaseBusiness size={24} /></span><small>ENVISION</small><strong>Work that fits you</strong></div>
-            <div className="path-link"><span /><ArrowRight size={16} /><span /></div>
-            <div className="path-node next"><span className="node-symbol"><Layers3 size={24} /></span><small>BUILD</small><strong>Skills to get there</strong></div>
-          </div>
-          <div className="journey-footer">
-            <button className="button mint" onClick={() => go('explore')}>Find my starting point <ArrowRight size={18} /></button>
-            <span>At your pace. On your terms.</span>
-          </div>
-        </section>
-        <section className="adviser-card" aria-labelledby="adviser-heading">
-          <div className="adviser-symbol"><Sparkles size={26} /></div>
-          <span className="eyebrow">MEET YOUR CAREER COMPANION</span>
-          <h2 id="adviser-heading">Big questions.<br />A little guidance.</h2>
-          <p>Degrees, skills, or that "what next?" feeling. Let&apos;s work through it together.</p>
-          <button className="chat-prompt" onClick={onChat}>&quot;I&apos;m not sure what to study.&quot;<ArrowUpRight size={17} /></button>
-          <button className="button dark full" onClick={onChat}>Let&apos;s find your direction <Sparkles size={17} /></button>
-          <small>Made for your journey, wherever it starts.</small>
-        </section>
-      </div>
       <section className="next-actions" aria-labelledby="toolkit-heading">
         <div className="section-heading">
           <div><h2 id="toolkit-heading">A few ways forward</h2><p>You&apos;re allowed to explore more than one possibility.</p></div>

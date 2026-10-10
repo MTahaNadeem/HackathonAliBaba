@@ -38,21 +38,16 @@ test('Dashboard renders both primary journey cards with exact copy and CTAs', ()
   assert.match(html, /Build My Career Path/);
 });
 
-test('Dashboard preserves connected path map, adviser card, and exploration toolkit', () => {
+test('Dashboard preserves exploration toolkit and removes path map and adviser card', () => {
   const html = renderToStaticMarkup(
     React.createElement(Dashboard, { go: () => {}, onChat: () => {} })
   );
 
-  // Path map elements
-  assert.match(html, /A degree you love/);
-  assert.match(html, /Work that fits you/);
-  assert.match(html, /Skills to get there/);
+  // Removed elements confirmed absent
+  assert.ok(!html.includes('YOUR PERSONAL PATH'));
+  assert.ok(!html.includes('A degree you love'));
 
-  // Adviser card
-  assert.match(html, /MEET YOUR CAREER COMPANION/);
-  assert.match(html, /Let(?:’|&#x27;|')s find your direction/);
-
-  // Toolkit
+  // Toolkit preserved
   assert.match(html, /A few ways forward/);
   assert.match(html, /Discover your degree/);
   assert.match(html, /Find your university/);

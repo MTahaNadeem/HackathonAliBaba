@@ -153,3 +153,22 @@
   .db-next-meta{align-items:flex-start}
   .db-progress-grid{gap:16px}
 }
+
+/* Discovery Hub shortcut cards */
+.explore-hub-row{
+  margin-bottom:28px;
+}
+.hub-entry-card{
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  border-radius:18px;
+}
+.hub-entry-card p{
+  max-width:none;
+  flex-grow:1;
+}
+.hub-entry-card.active{
+  border-color:#a4c1ea;
+  box-shadow:0 0 0 1px #a4c1ea inset, 0 6px 20px rgba(50,100,214,0.06);
+}

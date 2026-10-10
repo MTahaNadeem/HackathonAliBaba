@@ -50,29 +50,57 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
 
       {/* Discovery Hub Entry Points */}
       {go && (
-        <div className="explore-hub-row" aria-label="Discovery pathways">
-          <div className="hub-entry-card active">
-            <Compass size={20} />
-            <div>
-              <strong>Explore Degrees</strong>
-              <small>Matching disciplines &amp; trial projects</small>
+        <div className="explore-hub-row action-grid" aria-label="Discovery pathways">
+          <button
+            type="button"
+            className="hub-entry-card action-card active"
+            onClick={() => {
+              setField('All fields');
+              setQuery('');
+              go('explore');
+            }}
+          >
+            <div className="action-symbol blue">
+              <Compass size={24} />
             </div>
-          </div>
-          <button className="hub-entry-card" onClick={() => go('universities')}>
-            <GraduationCap size={20} />
-            <div>
-              <strong>Education &amp; Campuses</strong>
-              <small>Universities, eligibility &amp; fees</small>
+            <h3>Explore Degrees</h3>
+            <p>Matching disciplines &amp; trial projects</p>
+            <div className="card-footer">
+              <span>Explore degrees</span>
+              <ArrowUpRight size={17} />
             </div>
-            <ArrowUpRight size={15} />
           </button>
-          <button className="hub-entry-card" onClick={() => go('jobs')}>
-            <BriefcaseBusiness size={20} />
-            <div>
-              <strong>Careers &amp; Target Roles</strong>
-              <small>Role briefs &amp; skill gap analysis</small>
+
+          <button
+            type="button"
+            className="hub-entry-card action-card"
+            onClick={() => go('universities')}
+          >
+            <div className="action-symbol green">
+              <GraduationCap size={24} />
             </div>
-            <ArrowUpRight size={15} />
+            <h3>Education &amp; Campuses</h3>
+            <p>Universities, eligibility &amp; fees</p>
+            <div className="card-footer">
+              <span>Explore campuses</span>
+              <ArrowUpRight size={17} />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="hub-entry-card action-card"
+            onClick={() => go('jobs')}
+          >
+            <div className="action-symbol peach">
+              <BriefcaseBusiness size={24} />
+            </div>
+            <h3>Careers &amp; Target Roles</h3>
+            <p>Role briefs &amp; skill gap analysis</p>
+            <div className="card-footer">
+              <span>Explore careers</span>
+              <ArrowUpRight size={17} />
+            </div>
           </button>
         </div>
       )}
