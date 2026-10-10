@@ -123,7 +123,7 @@ const cycleValues = universities.map(u => {
   const verified = u.verificationStatus !== 'needs_information';
   const status = u.verificationStatus === 'needs_information' ? 'needs_information' : 'source_backed';
   const last_verified = u.lastVerifiedAt || `${u.checked}T00:00:00.000Z`;
-  const mandDesc = u.mandatory ? `PKR ${u.mandatory.toLocaleString()} mandatory semester charges` : null;
+  const mandDesc = typeof u.mandatory === 'number' && !isNaN(u.mandatory) && u.mandatory > 0 ? `PKR ${u.mandatory.toLocaleString()} mandatory semester charges` : null;
   return `  (${sqlStr(u.id)}, ${sqlStr(u.feeYear || '2026–27')}, ${sqlStr(u.feeUrl || u.url)}, ${sqlStr(u.checked)}::date, ${sqlBool(verified)}, ${sqlNum(u.fee)}, ${sqlNum(u.mandatory)}, ${sqlJson(rules)}, ${sqlStr(last_verified)}::timestamptz, ${sqlStr(status)}::public.verification_status, 'PKR', 'semester', ${sqlStr(mandDesc)})`;
 }).join(',\n');
 lines.push(cycleValues + ' ON CONFLICT (programme_id, academic_year) DO UPDATE SET tuition_per_semester = EXCLUDED.tuition_per_semester, mandatory_per_semester = EXCLUDED.mandatory_per_semester, rules = EXCLUDED.rules, verified = EXCLUDED.verified, last_verified_at = EXCLUDED.last_verified_at, verification_status = EXCLUDED.verification_status;\n');

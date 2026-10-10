@@ -39,3 +39,11 @@
 .university-notes.needs-info-notice{background:#fff9f9;border-color:#f8d5d5;color:#8f3a3a}
 .university-notes.needs-info-notice svg{color:#a84040}
 
+/* ── Error Boundary ─────────────────────────────────────────────────── */
+.error-boundary-wrapper{min-height:50vh;display:flex;align-items:center;justify-content:center;padding:48px 24px}
+.error-boundary-card{background:#fff;border:1px solid var(--border);border-radius:22px;padding:40px 32px;max-width:520px;width:100%;text-align:center;box-shadow:0 12px 35px #1c3a600a}
+.error-boundary-card .icon-circle{width:56px;height:56px;border-radius:18px;background:#fef2f2;color:#dc2626;display:grid;place-items:center;margin:0 auto 20px}
+.error-boundary-card h2{font-size:24px;margin-bottom:10px;color:var(--foreground);letter-spacing:-.5px}
+.error-boundary-card p{color:var(--secondary);font-size:14px;line-height:1.65;margin-bottom:26px}
+.error-boundary-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+

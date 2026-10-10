@@ -107,7 +107,7 @@ await upsert(
     verification_status: dbStatus(u.verificationStatus),
     fee_currency: 'PKR',
     fee_period: 'semester',
-    fee_mandatory_description: u.mandatory ? `PKR ${u.mandatory.toLocaleString()} mandatory semester charges` : null
+    fee_mandatory_description: typeof u.mandatory === 'number' && !isNaN(u.mandatory) && u.mandatory > 0 ? `PKR ${u.mandatory.toLocaleString()} mandatory semester charges` : null
   })),
   'programme_id,academic_year'
 );

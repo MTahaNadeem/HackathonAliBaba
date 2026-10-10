@@ -163,8 +163,8 @@ function shapeUniversity(u: DbUniversityRow) {
         programme: prog.title,
         degreeId: prog.degree_id,
         url: u.official_url,
-        fee: isVerified ? (cycle?.tuition_per_semester ?? null) : null,
-        mandatory: isVerified ? (cycle?.mandatory_per_semester ?? null) : null,
+        fee: isVerified && typeof cycle?.tuition_per_semester === 'number' && !isNaN(cycle.tuition_per_semester) ? cycle.tuition_per_semester : null,
+        mandatory: isVerified && typeof cycle?.mandatory_per_semester === 'number' && !isNaN(cycle.mandatory_per_semester) ? cycle.mandatory_per_semester : null,
         feeUrl: cycle?.source_url ?? u.source_url,
         feeYear: cycle?.academic_year ?? null,
         // The 'rule' field drives eligibility logic in domain.ts.
@@ -172,7 +172,7 @@ function shapeUniversity(u: DbUniversityRow) {
         rule: isVerified
           ? ((rulesObj?.kind as string) ?? 'unknown')
           : 'unknown',
-        checked: lastVerifiedAt
+        checked: lastVerifiedAt && typeof lastVerifiedAt === 'string'
           ? lastVerifiedAt.slice(0, 10)
           : 'not yet verified',
         // Freshness and admission requirements
@@ -208,6 +208,8 @@ export async function GET() {
   // Fallback: static catalogue with explicit labelling
   const fallbackUniversities = catalogueUniversities.map((u) => ({
     ...u,
+    fee: typeof u.fee === 'number' && !isNaN(u.fee) ? u.fee : null,
+    mandatory: typeof u.mandatory === 'number' && !isNaN(u.mandatory) ? u.mandatory : null,
     verificationStatus: u.verificationStatus ?? (u.rule === 'unknown' ? 'needs_information' : 'manual_snapshot'),
     lastVerifiedAt: u.lastVerifiedAt ?? u.checked ?? null,
     sourceUrl: u.sourceUrl ?? u.feeUrl ?? u.url,

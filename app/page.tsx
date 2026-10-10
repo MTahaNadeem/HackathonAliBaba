@@ -1,2 +1,10 @@
 import CourseCompassApp from '@/components/coursecompass-app';
-export default function Page(){ return <CourseCompassApp/>; }
+import { ErrorBoundary } from '@/components/error-boundary';
+
+export default function Page() {
+  return (
+    <ErrorBoundary>
+      <CourseCompassApp />
+    </ErrorBoundary>
+  );
+}
