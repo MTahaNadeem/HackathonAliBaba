@@ -2,7 +2,8 @@
 
 import {useEffect, useState} from 'react';
 import Link from 'next/link';
-import {createClient, type SupabaseClient} from '@supabase/supabase-js';
+import {type SupabaseClient} from '@supabase/supabase-js';
+import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 import {Route} from 'lucide-react';
 import AuthPanel, {AuthSymbol, authCopy} from './auth-panel';
 
@@ -23,7 +24,12 @@ export default function AuthReset() {
           setReady(true);
           return;
         }
-        const sb = createClient(c.supabaseUrl, c.supabaseKey, {auth: {flowType: 'pkce', detectSessionInUrl: true}});
+        const sb = getSupabaseBrowserClient(c.supabaseUrl, c.supabaseKey);
+        if (!sb) {
+          setError('Could not initialize account service.');
+          setReady(true);
+          return;
+        }
         setClient(sb);
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');

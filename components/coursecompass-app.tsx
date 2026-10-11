@@ -1,6 +1,7 @@
 'use client';
 import {useState, useEffect, useRef, useCallback} from 'react';
-import {createClient, type SupabaseClient, type Session} from '@supabase/supabase-js';
+import type {SupabaseClient, Session} from '@supabase/supabase-js';
+import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 import {
   ArrowRight,
   Compass,
@@ -28,7 +29,7 @@ import Learning from './learning';
 import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
-import {emptyProfile, createPlan, type Profile, type Plan} from '@/lib/domain';
+import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
@@ -83,6 +84,17 @@ export default function CourseCompassApp() {
     ingestion?: {last_run_at: string | null; last_run_ok: boolean | null};
   } | null>(null);
 
+  const profileComplete = isProfileComplete(profile);
+  const requiresOnboarding = Boolean(session && !syncing && !profileComplete);
+
+  // Forced redirect for authenticated users with incomplete profiles
+  useEffect(() => {
+    if (requiresOnboarding && view !== 'profile') {
+      setView('profile');
+      window.location.hash = 'my-profile';
+    }
+  }, [requiresOnboarding, view]);
+
   useEffect(() => {
     let alive = true;
     fetch('/api/catalogue')
@@ -102,16 +114,28 @@ export default function CourseCompassApp() {
 
   const go = useCallback((target: string) => {
     const normalized = normalizeView(target);
-    setView(normalized);
+    if (session && !syncing && !isProfileComplete(profile) && normalized !== 'profile') {
+      toast.error('Complete your required preferences first to personalize your experience.');
+      return;
+    }
+    setView(prev => {
+      if (prev !== normalized) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+      return normalized;
+    });
     setMobile(false);
     window.location.hash = viewToHash(normalized);
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, []);
+  }, [session, syncing, profile]);
 
   useEffect(() => {
     function handleHash() {
       const raw = location.hash.slice(1);
       if (isAuthHash(raw)) return;
+      if (session && !syncing && !isProfileComplete(profile)) {
+        setView('profile');
+        return;
+      }
       if (!raw) {
         setView('dashboard');
         return;
@@ -122,7 +146,7 @@ export default function CourseCompassApp() {
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [session, syncing, profile]);
 
   useEffect(() => {
     let alive = true;
@@ -133,9 +157,8 @@ export default function CourseCompassApp() {
         if (!alive) return;
         setAiConfigured(c.aiConfigured);
         if (c.authConfigured) {
-          const sb = createClient(c.supabaseUrl, c.supabaseKey, {
-            auth: {flowType: 'pkce', detectSessionInUrl: true, persistSession: true}
-          });
+          const sb = getSupabaseBrowserClient(c.supabaseUrl, c.supabaseKey);
+          if (!sb) return;
           setClient(sb);
           sb.auth.getSession().then(({data}) => {
             if (alive) {
@@ -147,9 +170,6 @@ export default function CourseCompassApp() {
             if (!alive) return;
             sessionRef.current = s;
             setSession(s);
-            if (event === 'SIGNED_IN') {
-              go('dashboard');
-            }
             if (event === 'PASSWORD_RECOVERY') {
               setRecovery(true);
               setAuthOpen(true);
@@ -163,7 +183,7 @@ export default function CourseCompassApp() {
       alive = false;
       unsubscribe?.();
     };
-  }, [go]);
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -223,8 +243,11 @@ export default function CourseCompassApp() {
     try {
       const saved = await persist('/api/profile', p);
       setSync(saved ? 'Saved to account' : 'Guest session');
-      toast.success(saved ? 'Profile saved.' : 'Preferences updated for this session.');
-      go('dashboard');
+      toast.success(saved ? 'Preferences saved! Your workspace is now personalized.' : 'Preferences updated for this session.');
+      if (isProfileComplete(p)) {
+        setView('dashboard');
+        window.location.hash = '';
+      }
     } catch (e) {
       setSync('Unsaved changes');
       toast.error(e instanceof Error ? e.message : 'Profile was not saved.');
@@ -370,6 +393,10 @@ export default function CourseCompassApp() {
           className={`brand ${view === 'dashboard' ? 'active-brand' : ''}`}
           onClick={e => {
             e.preventDefault();
+            if (requiresOnboarding) {
+              toast.error('Complete your required preferences first to personalize your experience.');
+              return;
+            }
             go('dashboard');
           }}
           aria-label="CourseCompass home and dashboard"
@@ -381,18 +408,44 @@ export default function CourseCompassApp() {
         </a>
         <div className="workspace-label">YOUR NEXT CHAPTER</div>
         <nav aria-label="Main navigation">
-          {nav.map(n => (
-            <button
-              key={n.id}
-              onClick={() => go(n.id)}
-              className={`nav-item ${view === n.id ? 'active' : ''}`}
-              aria-current={view === n.id ? 'page' : undefined}
-            >
-              <n.icon size={20} />
-              <span>{n.label}</span>
-              {view === n.id && <span className="active-dot" />}
-            </button>
-          ))}
+          {nav.map(n => {
+            const isLocked = Boolean(requiresOnboarding && n.id !== 'profile');
+            return (
+              <button
+                key={n.id}
+                onClick={() => {
+                  if (isLocked) {
+                    toast.error('Complete your required preferences first to personalize your experience.');
+                    return;
+                  }
+                  go(n.id);
+                }}
+                className={`nav-item ${view === n.id ? 'active' : ''}`}
+                style={isLocked ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                aria-disabled={isLocked ? true : undefined}
+                aria-current={view === n.id ? 'page' : undefined}
+              >
+                <n.icon size={20} />
+                <span>{n.label}</span>
+                {isLocked && (
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: '10px',
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Setup
+                  </span>
+                )}
+                {view === n.id && !isLocked && <span className="active-dot" />}
+              </button>
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           <button className="sidebar-note" onClick={() => setAdviser(true)}>
@@ -445,8 +498,21 @@ export default function CourseCompassApp() {
               <Menu />
             </button>
             <button
-              onClick={() => go('dashboard')}
-              style={{ background: 'none', border: '0', padding: '0', font: 'inherit', color: 'inherit', cursor: 'pointer' }}
+              onClick={() => {
+                if (requiresOnboarding) {
+                  toast.error('Complete your required preferences first to personalize your experience.');
+                  return;
+                }
+                go('dashboard');
+              }}
+              style={{
+                background: 'none',
+                border: '0',
+                padding: '0',
+                font: 'inherit',
+                color: 'inherit',
+                cursor: requiresOnboarding ? 'not-allowed' : 'pointer',
+              }}
               aria-label="Go to home/dashboard"
             >
               <span>Your workspace</span>
@@ -529,6 +595,7 @@ export default function CourseCompassApp() {
                 setRecovery(true);
                 setAuthOpen(true);
               }}
+              requiresOnboarding={requiresOnboarding}
             />
           )}
           <footer className="page-footer">

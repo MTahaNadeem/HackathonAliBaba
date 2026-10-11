@@ -2,6 +2,30 @@ import {degrees,resources,skillNames,type University} from './catalogue';
 export type Profile={name:string;stage:string;qualification:string;subjects:string[];interests:string[];skills:string[];city:string;budget:number|null;hours:number;ssc:number|null;hssc:number|null;equivalence:boolean;net:number|null;goal:string;relocate:boolean;experience?:string;projects?:string;certifications?:string;links?:string;resumeText?:string;extractedSkills?:string};
 export const emptyProfile:Profile={name:'',stage:'Choosing a degree',qualification:'FSc',subjects:[],interests:[],skills:[],city:'',budget:null,hours:5,ssc:null,hssc:null,equivalence:false,net:null,goal:'',relocate:false,experience:'',projects:'',certifications:'',links:'',resumeText:'',extractedSkills:''};
 export function recommend(p:Profile){return degrees.map(d=>{const interests=d.interests.filter(i=>p.interests.includes(i));const subjects=d.subjects.filter(i=>p.subjects.includes(i));return {...d,reasons:[...interests.map(i=>`You enjoy ${i.toLowerCase()}`),...subjects.map(i=>`Connects with ${i}`)],score:interests.length*2+subjects.length}}).sort((a,b)=>b.score-a.score)}
+
+/**
+ * Checks whether a user profile has the minimum required preferences filled
+ * to enable meaningful site-wide personalization:
+ * 1. qualification: non-empty string
+ * 2. goal: non-empty string representing a recognized degree id
+ * 3. city: non-empty string
+ * 4. budget: positive number
+ */
+export function isProfileComplete(p: Profile | null | undefined): boolean {
+  if (!p) return false;
+  const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
+  const hasGoal = Boolean(p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal));
+  const hasCity = Boolean(p.city && p.city.trim().length > 0);
+  const hasBudget = typeof p.budget === 'number' && !isNaN(p.budget) && p.budget > 0;
+  return Boolean(hasQualification && hasGoal && hasCity && hasBudget);
+}
+
+export function getProfileDirection(p: Profile | null | undefined) {
+  if (!p?.goal) return null;
+  const d = degrees.find(deg => deg.id === p.goal);
+  if (!d) return null;
+  return { id: d.id, name: d.name, field: d.field };
+}
 /** Safe currency / amount formatter for PKR. Returns null if invalid or not a number. */
 export function formatPKR(amount: number | null | undefined): string | null {
   if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) return null;
