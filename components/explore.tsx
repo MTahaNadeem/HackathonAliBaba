@@ -9,7 +9,8 @@ import {
   Scale,
   Lightbulb,
   GraduationCap,
-  BriefcaseBusiness
+  BriefcaseBusiness,
+  Sparkles
 } from 'lucide-react';
 import {degrees, type Degree} from '@/lib/catalogue';
 import {recommend, type Profile} from '@/lib/domain';
@@ -23,17 +24,34 @@ interface ExploreProps {
 }
 
 export default function Explore({profile, onGoal, go}: ExploreProps) {
+  const goalDegree = degrees.find(d => d.id === profile.goal);
+  const [prioritizePersonalized, setPrioritizePersonalized] = useState(Boolean(goalDegree));
   const [query, setQuery] = useState('');
   const [field, setField] = useState('All fields');
   const [detail, setDetail] = useState<Degree | null>(null);
   const [compare, setCompare] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
 
-  const list = recommend(profile).filter(
-    d =>
-      (field === 'All fields' || d.field === field) &&
-      `${d.name} ${d.description} ${d.roles.join(' ')}`.toLowerCase().includes(query.toLowerCase())
-  );
+  const list = recommend(profile)
+    .filter(
+      d =>
+        (field === 'All fields' || d.field === field) &&
+        `${d.name} ${d.description} ${d.roles.join(' ')}`.toLowerCase().includes(query.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (prioritizePersonalized && goalDegree && field === 'All fields') {
+        const aExact = a.id === goalDegree.id;
+        const bExact = b.id === goalDegree.id;
+        if (aExact && !bExact) return -1;
+        if (bExact && !aExact) return 1;
+
+        const aField = a.field === goalDegree.field;
+        const bField = b.field === goalDegree.field;
+        if (aField && !bField) return -1;
+        if (bField && !aField) return 1;
+      }
+      return 0;
+    });
 
   return (
     <>
@@ -124,6 +142,84 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
           Compare ({compare.length}/3)
         </button>
       </div>
+
+      {prioritizePersonalized && goalDegree && (
+        <div
+          className="active-filter-banner"
+          style={{
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '14px',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Sparkles size={18} style={{ color: '#2563eb', flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', color: '#1e3a8a' }}>
+              Prioritizing degree paths for your chosen direction:{' '}
+              <strong>
+                {goalDegree.name} ({goalDegree.field})
+              </strong>
+            </span>
+          </div>
+          <button
+            className="text-button"
+            style={{
+              fontSize: '13px',
+              color: '#2563eb',
+              textDecoration: 'underline',
+              fontWeight: 600,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => setPrioritizePersonalized(false)}
+          >
+            Standard ranking
+          </button>
+        </div>
+      )}
+      {!prioritizePersonalized && goalDegree && (
+        <div
+          className="active-filter-banner"
+          style={{
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '10px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '14px',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontSize: '13px', color: '#64748b' }}>
+            Showing degrees in standard recommendation order.
+          </span>
+          <button
+            className="text-button"
+            style={{
+              fontSize: '13px',
+              color: '#2563eb',
+              fontWeight: 600,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => setPrioritizePersonalized(true)}
+          >
+            Prioritize for {goalDegree.name}
+          </button>
+        </div>
+      )}
 
       <div className="filter-chips" aria-label="Filter by discipline">
         {['All fields', ...new Set(degrees.map(d => d.field))].map(f => (

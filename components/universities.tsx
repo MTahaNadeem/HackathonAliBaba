@@ -1,6 +1,6 @@
 'use client';
 import {useState} from 'react';
-import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw} from 'lucide-react';
+import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw,Sparkles} from 'lucide-react';
 import {universities as catalogueUniversities,sourceLinks,degrees,type University,type VerificationStatus} from '@/lib/catalogue';
 import {assessUniversity,getFeeDisplay,type Profile} from '@/lib/domain';
 import {Choice,CheckField,Empty} from './fields';
@@ -41,10 +41,33 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   // Prefer live DB universities; fall back to static catalogue, defensively flattening
   const rawSource = liveUniversities?.length ? liveUniversities : catalogueUniversities;
   const source: University[] = (rawSource as (University | University[])[]).flat();
+  const goalDegree = degrees.find(d => d.id === profile.goal);
+  const hasPreferences = Boolean(goalDegree && (profile.city || !profile.relocate));
+  const [personalizedFilter, setPersonalizedFilter] = useState(hasPreferences);
+
   const [city,setCity]=useState(profile.relocate?'All cities':profile.city||'All cities');
   const [query,setQuery]=useState('');
   const [budgetOnly,setBudgetOnly]=useState(false);
-  const list=source.filter(u=>(city==='All cities'||u.city===city)&&`${u.name} ${u.short} ${u.programme}`.toLowerCase().includes(query.toLowerCase())&&(!budgetOnly||assessUniversity(u,profile).budget==='Within semester budget'));
+
+  const list = source
+    .filter(u => {
+      const cityMatches = (city === 'All cities' || u.city === city);
+      const queryMatches = `${u.name} ${u.short} ${u.programme}`.toLowerCase().includes(query.toLowerCase());
+      const budgetMatches = (!budgetOnly || assessUniversity(u, profile).budget === 'Within semester budget');
+      if (!cityMatches || !queryMatches || !budgetMatches) return false;
+      if (personalizedFilter && goalDegree) {
+        const progDeg = degrees.find(d => d.id === u.degreeId);
+        if (progDeg?.field !== goalDegree.field) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (personalizedFilter && goalDegree) {
+        if (a.degreeId === goalDegree.id && b.degreeId !== goalDegree.id) return -1;
+        if (b.degreeId === goalDegree.id && a.degreeId !== goalDegree.id) return 1;
+      }
+      return 0;
+    });
 
   const liveCount = source.filter(u => u.verificationStatus === 'live_refreshed').length;
   const manualCount = source.filter(u => u.verificationStatus === 'manual_snapshot' || u.verificationStatus === 'source_backed' || !u.verificationStatus).length;
@@ -57,6 +80,29 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   {dataSource==='database'&&lastRunOk===false&&<div className="inline-note freshness-notice stale-notice"><AlertTriangle size={16}/><div><strong>Last pipeline refresh had failures.</strong> Some entries may not have updated. Check the ingestion run log.</div></div>}
 
   <div className="university-intro"><div><GraduationCap size={28}/><strong>Your fit comes first.</strong><p>We separate academic requirements, affordability and location. A recommendation is a starting point—not an admission offer.</p></div><div className="preference-summary"><span>{profile.qualification}</span><span>{profile.city||'Choose your city'}</span><span>{typeof profile.budget==='number'&&!isNaN(profile.budget)?`PKR ${profile.budget.toLocaleString()} / semester`:'Budget not set'}</span></div></div>
+
+  {/* Active personalized filtering banner */}
+  {personalizedFilter && goalDegree && (
+    <div className="active-filter-banner" style={{background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '16px', flexWrap: 'wrap'}}>
+      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+        <Sparkles size={18} style={{color: '#2563eb', flexShrink: 0}} />
+        <span style={{fontSize: '13px', color: '#1e3a8a'}}>
+          Showing personalized results for <strong>{goalDegree.name} ({goalDegree.field})</strong> · <strong>{city !== 'All cities' ? city : profile.city || 'All cities'}</strong>{typeof profile.budget === 'number' ? ` · PKR ${profile.budget.toLocaleString()}` : ''}
+        </span>
+      </div>
+      <button className="text-button" style={{fontSize: '13px', color: '#2563eb', textDecoration: 'underline', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer'}} onClick={() => { setPersonalizedFilter(false); setCity('All cities'); }}>
+        View all programmes
+      </button>
+    </div>
+  )}
+  {!personalizedFilter && hasPreferences && (
+    <div className="active-filter-banner" style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '16px', flexWrap: 'wrap'}}>
+      <span style={{fontSize: '13px', color: '#64748b'}}>Showing all university programmes across all fields and cities.</span>
+      <button className="text-button" style={{fontSize: '13px', color: '#2563eb', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer'}} onClick={() => { setPersonalizedFilter(true); if (profile.city) setCity(profile.city); }}>
+        Apply my personalized preferences
+      </button>
+    </div>
+  )}
 
   <div className="filter-row"><label className="search-field"><Search size={18}/><input aria-label="Search universities" placeholder="Search universities or programmes…" value={query} onChange={e=>setQuery(e.target.value)}/></label><Choice label="City" value={city} options={Array.from(new Set(['All cities',...source.map(u=>u.city),...(profile.city?[profile.city]:[])]))} onChange={setCity}/></div>
   <div className="filter-row secondary"><CheckField label="Only verified costs within my budget" checked={budgetOnly} onChange={setBudgetOnly}/><span className="muted small-text">{list.length} programme listings ({liveCount} live-refreshed · {manualCount} manual snapshots · {needsInfoCount} inquiry required) · {dataSource==='database'?'live database':'initial curated catalogue'}</span></div>

@@ -15,9 +15,10 @@ import {
   RefreshCw,
   X,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
-import { qualifications, interestOptions, skillNames, sourceLinks } from '@/lib/catalogue';
-import { type Profile } from '@/lib/domain';
+import { qualifications, interestOptions, skillNames, sourceLinks, degrees } from '@/lib/catalogue';
+import { type Profile, isProfileComplete } from '@/lib/domain';
 import { profileSchema } from '@/lib/validation';
 import { Choice, CheckField } from './fields';
 
@@ -36,6 +37,7 @@ export default function ProfileView({
   onSignIn,
   onSignOut,
   onChangePassword,
+  requiresOnboarding = false,
 }: {
   profile: Profile;
   onSave: (p: Profile) => void;
@@ -45,6 +47,7 @@ export default function ProfileView({
   onSignIn?: () => void;
   onSignOut?: () => void;
   onChangePassword?: () => void;
+  requiresOnboarding?: boolean;
 }) {
   const [draft, setDraft] = useState(profile);
   const [error, setError] = useState('');
@@ -64,6 +67,22 @@ export default function ProfileView({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!draft.qualification?.trim()) {
+      setError('Please select your school / college qualification.');
+      return;
+    }
+    if (!draft.goal?.trim() || !degrees.some((d) => d.id === draft.goal)) {
+      setError('Please select your chosen direction / degree path.');
+      return;
+    }
+    if (!draft.city?.trim()) {
+      setError('Please enter your city to filter local university options.');
+      return;
+    }
+    if (typeof draft.budget !== 'number' || isNaN(draft.budget) || draft.budget <= 0) {
+      setError('Please enter a valid semester budget (greater than PKR 0).');
+      return;
+    }
     const p = profileSchema.safeParse(draft);
     if (!p.success) {
       setError(p.error.issues[0]?.message || 'Check your fields.');
@@ -193,6 +212,33 @@ export default function ProfileView({
         </span>
       </div>
 
+      {(requiresOnboarding || (cloud && !isProfileComplete(profile))) && (
+        <div
+          className="onboarding-notice inline-note"
+          role="alert"
+          style={{
+            marginBottom: '24px',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            padding: '16px 20px',
+            borderRadius: '14px',
+            display: 'flex',
+            gap: '14px',
+            alignItems: 'center',
+          }}
+        >
+          <Sparkles size={24} style={{ color: '#2563eb', flexShrink: 0 }} />
+          <div>
+            <strong style={{ color: '#1e3a8a', fontSize: '15px', display: 'block', marginBottom: '2px' }}>
+              Complete a few details to personalize your experience
+            </strong>
+            <span style={{ color: '#3b82f6', fontSize: '13px' }}>
+              Please set your <strong>qualification</strong>, <strong>chosen direction</strong>, <strong>city</strong>, and <strong>semester budget</strong> below to unlock tailored recommendations across the platform.
+            </span>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={submit} className="profile-form">
         <section className="form-section">
           <div className="form-section-heading">
@@ -259,7 +305,7 @@ export default function ProfileView({
               onChange={(v) => change('stage', v)}
             />
             <Choice
-              label="School / college qualification"
+              label="School / college qualification *"
               value={draft.qualification}
               options={[...qualifications]}
               onChange={(v) => {
@@ -274,12 +320,52 @@ export default function ProfileView({
               }}
             />
             <label className="field">
-              <span>City</span>
+              <span>
+                Chosen direction / Field of interest <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
+              </span>
+              <select
+                aria-label="Chosen direction / field of interest"
+                className="coursecompass-select"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)',
+                  background: '#fff',
+                  fontSize: '14px',
+                  color: draft.goal ? '#142d52' : '#8097b2',
+                  height: '42px',
+                }}
+                value={draft.goal || ''}
+                onChange={(e) => change('goal', e.target.value)}
+                required
+              >
+                <option value="">Select your academic direction / degree path…</option>
+                {['Technology', 'Engineering', 'Business', 'Social sciences', 'Arts & design', 'Sciences', 'Health', 'Humanities'].map((f) => {
+                  const degsInField = degrees.filter((d) => d.field === f);
+                  if (!degsInField.length) return null;
+                  return (
+                    <optgroup key={f} label={`── ${f} ──`}>
+                      {degsInField.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} · {d.field}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
+            </label>
+            <label className="field">
+              <span>
+                City <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
+              </span>
               <input
                 maxLength={60}
                 value={draft.city}
                 onChange={(e) => change('city', e.target.value)}
-                placeholder="e.g. Lahore"
+                placeholder="e.g. Lahore, Rawalpindi, Islamabad"
+                required
               />
             </label>
           </div>
@@ -346,7 +432,9 @@ export default function ProfileView({
           </div>
           <div className="form-grid">
             <label className="field">
-              <span>Semester education budget (PKR)</span>
+              <span>
+                Semester education budget (PKR) <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
+              </span>
               <input
                 type="number"
                 min={0}
@@ -355,7 +443,8 @@ export default function ProfileView({
                 onChange={(e) =>
                   change('budget', e.target.value === '' ? null : Number(e.target.value))
                 }
-                placeholder="e.g. 250000"
+                placeholder="e.g. 200000"
+                required
               />
               <small>Tuition and mandatory semester charges. Living costs are separate.</small>
             </label>

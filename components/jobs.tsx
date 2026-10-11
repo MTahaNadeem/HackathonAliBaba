@@ -1,6 +1,6 @@
 'use client';
 import {useState} from 'react';
-import {ArrowRight,Search,MapPin,BriefcaseBusiness,Check,ArrowUpRight,FileText,LoaderCircle,Link} from 'lucide-react';
+import {ArrowRight,Search,MapPin,BriefcaseBusiness,Check,ArrowUpRight,FileText,LoaderCircle,Link,Sparkles} from 'lucide-react';
 import {roles,degrees} from '@/lib/catalogue';
 import {type Profile} from '@/lib/domain';
 import {Empty} from './fields';
@@ -9,6 +9,8 @@ type Gap = { skill: string, status: 'Demonstrated'|'Improve'|'Learn Next', evide
 type AnalysisResult = { title: string, company: string, gaps: Gap[], formal: string[], method: string };
 
 export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:string,skills:string[])=>void}) {
+  const goalDegree = degrees.find(d => d.id === profile.goal);
+  const [prioritizePersonalized, setPrioritizePersonalized] = useState(Boolean(goalDegree));
   const [text,setText] = useState('');
   const [url,setUrl] = useState('');
   const [query,setQuery] = useState('');
@@ -38,7 +40,22 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
     }
   }
 
-  const filtered = roles.filter(r => `${r.title} ${r.city} ${r.description}`.toLowerCase().includes(query.toLowerCase()));
+  const filtered = roles
+    .filter(r => `${r.title} ${r.city} ${r.description}`.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => {
+      if (prioritizePersonalized && goalDegree) {
+        const aExact = a.degreeId === goalDegree.id;
+        const bExact = b.degreeId === goalDegree.id;
+        if (aExact && !bExact) return -1;
+        if (bExact && !aExact) return 1;
+
+        const aField = degrees.find(d => d.id === a.degreeId)?.field === goalDegree.field;
+        const bField = degrees.find(d => d.id === b.degreeId)?.field === goalDegree.field;
+        if (aField && !bField) return -1;
+        if (bField && !aField) return 1;
+      }
+      return 0;
+    });
 
   return (
     <>
@@ -60,6 +77,83 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
             <input aria-label="Search role briefs" placeholder="Role, skill, or location…" value={query} onChange={e=>setQuery(e.target.value)}/>
           </label>
           <p className="small-text muted space-top">These illustrate requirements. They are not live vacancies.</p>
+
+          {prioritizePersonalized && goalDegree && (
+            <div
+              className="active-filter-banner"
+              style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                marginTop: '12px',
+                marginBottom: '14px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={16} style={{ color: '#2563eb', flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: '#1e3a8a' }}>
+                  Prioritizing role briefs for <strong>{goalDegree.name} ({goalDegree.field})</strong>
+                </span>
+              </div>
+              <button
+                className="text-button"
+                style={{
+                  fontSize: '12px',
+                  color: '#2563eb',
+                  textDecoration: 'underline',
+                  fontWeight: 600,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setPrioritizePersonalized(false)}
+              >
+                Standard order
+              </button>
+            </div>
+          )}
+          {!prioritizePersonalized && goalDegree && (
+            <div
+              className="active-filter-banner"
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                marginTop: '12px',
+                marginBottom: '14px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Showing role briefs in default order.
+              </span>
+              <button
+                className="text-button"
+                style={{
+                  fontSize: '12px',
+                  color: '#2563eb',
+                  fontWeight: 600,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setPrioritizePersonalized(true)}
+              >
+                Prioritize for {goalDegree.name}
+              </button>
+            </div>
+          )}
           <div className="role-list">
             {filtered.map(r => (
               <button key={r.id} className={`role-card ${title === r.title ? 'chosen' : ''}`} onClick={() => { setTitle(r.title); setText(r.description); setUrl(''); setResult(null); }}>

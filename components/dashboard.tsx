@@ -114,7 +114,23 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
     const nextMilestone = plan?.milestones.find(m => !isMilestoneDone(m));
     const displayName = profile.name?.trim();
     const cityFilter = profile.relocate ? null : profile.city || null;
-    const sideUnis = catalogueUniversities.filter(u => !cityFilter || u.city === cityFilter).slice(0, 5);
+    const sideUnis = catalogueUniversities
+      .filter(u => {
+        if (cityFilter && u.city !== cityFilter) return false;
+        if (goal) {
+          const progDeg = degrees.find(d => d.id === u.degreeId);
+          if (progDeg?.field !== goal.field) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (goal) {
+          if (a.degreeId === goal.id && b.degreeId !== goal.id) return -1;
+          if (b.degreeId === goal.id && a.degreeId !== goal.id) return 1;
+        }
+        return 0;
+      })
+      .slice(0, 5);
 
     return (
       <div className="personalized-dashboard" aria-label="Personalized Dashboard">
@@ -214,14 +230,24 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
               <span>02</span>
               <div>
                 <h2 id="uni-list-heading">{cityFilter ? `Programmes in ${cityFilter}` : 'Programme finder'}</h2>
-                <p>{cityFilter ? 'Verified programmes near you with real status badges.' : 'Set your city in profile to filter by location.'}</p>
+                <p>
+                  {goal
+                    ? `Matched to your ${goal.name} direction${cityFilter ? ` in ${cityFilter}` : ''}.`
+                    : cityFilter
+                    ? 'Verified programmes near you with real status badges.'
+                    : 'Set your city in profile to filter by location.'}
+                </p>
               </div>
             </div>
             {sideUnis.length === 0 ? (
               <div style={{padding: '20px 0', textAlign: 'center'}}>
                 <GraduationCap size={32} style={{color: '#9cb2ca', margin: '0 auto 12px', display: 'block'}} />
-                <p style={{fontSize: '14px', color: 'var(--secondary)', margin: '0 0 14px'}}>No programmes in your city. Update your city in My Profile.</p>
-                <button className="button outline" onClick={() => go('profile')}>Update city</button>
+                <p style={{fontSize: '14px', color: 'var(--secondary)', margin: '0 0 14px'}}>
+                  {goal
+                    ? `No ${goal.name.toLowerCase()} programmes found${cityFilter ? ` in ${cityFilter}` : ''}. Update your city or explore degree paths.`
+                    : 'No programmes found in your city. Update your city in My Profile.'}
+                </p>
+                <button className="button outline" onClick={() => go('profile')}>Update preferences</button>
               </div>
             ) : (
               <ul className="db-uni-list" role="list" style={{listStyle: 'none', margin: 0, padding: 0}}>
