@@ -1,14 +1,56 @@
 'use client';
 import {useState} from 'react';
-import {BookOpen,ArrowUpRight,ArrowRight,Clock3,Download,Check,Search,Video,Library,Flag,FileText} from 'lucide-react';
+import {BookOpen,ArrowUpRight,ArrowRight,Clock3,Download,Check,Search,Video,Library,Flag,FileText,Code2,MessagesSquare,FileCheck,Send,HelpCircle,CheckCircle2,ChevronDown} from 'lucide-react';
 import {resources,degrees} from '@/lib/catalogue';
 import {exportPlan,type Plan,type Profile,type MilestoneState} from '@/lib/domain';
 import {Progress} from '@/components/ui/progress';
+import {Checkbox} from '@/components/ui/checkbox';
 import {CheckField,Empty} from './fields';
+
+function QuestionBlock({ q, index }: { q: { question: string; hint: string; answer: string }; index: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`question-block ${open ? 'expanded' : ''}`}>
+      <div className="question-heading-row">
+        <span className="question-index-pill">Q{index + 1}</span>
+        <strong className="question-text">{q.question}</strong>
+      </div>
+      <div className="question-hint">
+        <HelpCircle size={14} className="hint-icon" />
+        <p><span className="hint-label">Hint:</span> {q.hint}</p>
+      </div>
+      <div className="answer-disclosure">
+        <button
+          type="button"
+          className={`answer-toggle-btn ${open ? 'active' : ''}`}
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
+          <span>{open ? 'Hide Suggested Answer' : 'Suggested Answer'}</span>
+          <ChevronDown size={14} className="chevron-icon" />
+        </button>
+        {open && (
+          <div className="answer-panel">
+            <div className="answer-panel-label">
+              <CheckCircle2 size={13} />
+              <span>SUGGESTED ANSWER</span>
+            </div>
+            <p>{q.answer}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Learning({plan,profile,onUpdate,onCreate,go}:{plan:Plan|null;profile:Profile;onUpdate:(p:Plan)=>void;onCreate:(goal:string,skills:string[])=>void;go:(id:string)=>void}){
   const [format,setFormat] = useState('All formats');
   const [search,setSearch] = useState('');
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  
+  function toggleCheck(key: string) {
+    setCheckedItems(prev => ({ ...prev, [key]: !prev[key] }));
+  }
   
   const done = plan?.milestones.filter(m => m.state === 'Demonstrated' || Boolean(m.done)).length || 0;
   const total = plan?.milestones.length || 0;
@@ -166,48 +208,132 @@ export default function Learning({plan,profile,onUpdate,onCreate,go}:{plan:Plan|
 
           {plan.interviewPrep && (
             <div className="interview-prep space-top">
-              <div className="section-heading">
-                <h2>Interview & Application Prep</h2>
-                <FileText size={20}/>
+              <div className="interview-prep-header">
+                <div className="prep-header-content">
+                  <span className="eyebrow">CAREER READINESS &amp; PREPARATION</span>
+                  <h2>Interview &amp; Application Prep</h2>
+                  <p>Role-specific technical questions, behavioral preparation, and checklist requirements.</p>
+                </div>
+                <div className="prep-header-badge" aria-hidden="true">
+                  <FileText size={20}/>
+                </div>
               </div>
+
               <div className="prep-grid">
-                <div>
-                  <h3>Technical Questions</h3>
-                  <ul className="question-list">
+                <div className="prep-card">
+                  <div className="prep-card-header">
+                    <div className="prep-card-title-group">
+                      <div className="prep-card-icon blue" aria-hidden="true">
+                        <Code2 size={18} />
+                      </div>
+                      <div>
+                        <h3>Technical Questions</h3>
+                        <small className="muted">Role-specific knowledge &amp; problem solving</small>
+                      </div>
+                    </div>
+                    <span className="prep-count-badge">
+                      {plan.interviewPrep.technical.length} questions
+                    </span>
+                  </div>
+                  <div className="question-list">
                     {plan.interviewPrep.technical.map((q, i) => (
-                      <li key={i}>
-                        <strong>{q.question}</strong>
-                        <p className="hint">Hint: {q.hint}</p>
-                        <details><summary>Suggested Answer</summary><p>{q.answer}</p></details>
-                      </li>
+                      <QuestionBlock key={i} q={q} index={i} />
                     ))}
-                  </ul>
+                  </div>
                 </div>
-                <div>
-                  <h3>Behavioral Questions</h3>
-                  <ul className="question-list">
+
+                <div className="prep-card">
+                  <div className="prep-card-header">
+                    <div className="prep-card-title-group">
+                      <div className="prep-card-icon peach" aria-hidden="true">
+                        <MessagesSquare size={18} />
+                      </div>
+                      <div>
+                        <h3>Behavioral Questions</h3>
+                        <small className="muted">STAR-format communication &amp; teamwork</small>
+                      </div>
+                    </div>
+                    <span className="prep-count-badge">
+                      {plan.interviewPrep.behavioral.length} questions
+                    </span>
+                  </div>
+                  <div className="question-list">
                     {plan.interviewPrep.behavioral.map((q, i) => (
-                      <li key={i}>
-                        <strong>{q.question}</strong>
-                        <p className="hint">Hint: {q.hint}</p>
-                        <details><summary>Suggested Answer</summary><p>{q.answer}</p></details>
-                      </li>
+                      <QuestionBlock key={i} q={q} index={i} />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               </div>
+
               <div className="prep-grid space-top">
-                <div className="checklist-box">
-                  <h3>Resume Checklist</h3>
-                  <ul>
-                    {plan.interviewPrep.resumeChecklist.map((c, i) => <li key={i}><Check size={14}/> {c}</li>)}
-                  </ul>
+                <div className="prep-card">
+                  <div className="prep-card-header">
+                    <div className="prep-card-title-group">
+                      <div className="prep-card-icon green" aria-hidden="true">
+                        <FileCheck size={18} />
+                      </div>
+                      <div>
+                        <h3>Resume Checklist</h3>
+                        <small className="muted">Essential items for ATS and technical reviews</small>
+                      </div>
+                    </div>
+                    <span className="prep-count-badge">
+                      {plan.interviewPrep.resumeChecklist.filter((_, i) => checkedItems[`resume-${i}`]).length} / {plan.interviewPrep.resumeChecklist.length} checked
+                    </span>
+                  </div>
+                  <div className="checklist-items-container">
+                    {plan.interviewPrep.resumeChecklist.map((c, i) => {
+                      const key = `resume-${i}`;
+                      const isChecked = Boolean(checkedItems[key]);
+                      return (
+                        <label
+                          key={key}
+                          className={`checklist-item-row ${isChecked ? 'completed' : ''}`}
+                        >
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={() => toggleCheck(key)}
+                          />
+                          <span className="checklist-item-text">{c}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="checklist-box">
-                  <h3>Application Checklist</h3>
-                  <ul>
-                    {plan.interviewPrep.applicationChecklist.map((c, i) => <li key={i}><Check size={14}/> {c}</li>)}
-                  </ul>
+
+                <div className="prep-card">
+                  <div className="prep-card-header">
+                    <div className="prep-card-title-group">
+                      <div className="prep-card-icon peach" aria-hidden="true">
+                        <Send size={18} />
+                      </div>
+                      <div>
+                        <h3>Application Checklist</h3>
+                        <small className="muted">Submission readiness &amp; follow-up process</small>
+                      </div>
+                    </div>
+                    <span className="prep-count-badge">
+                      {plan.interviewPrep.applicationChecklist.filter((_, i) => checkedItems[`app-${i}`]).length} / {plan.interviewPrep.applicationChecklist.length} checked
+                    </span>
+                  </div>
+                  <div className="checklist-items-container">
+                    {plan.interviewPrep.applicationChecklist.map((c, i) => {
+                      const key = `app-${i}`;
+                      const isChecked = Boolean(checkedItems[key]);
+                      return (
+                        <label
+                          key={key}
+                          className={`checklist-item-row ${isChecked ? 'completed' : ''}`}
+                        >
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={() => toggleCheck(key)}
+                          />
+                          <span className="checklist-item-text">{c}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
