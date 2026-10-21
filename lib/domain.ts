@@ -120,5 +120,237 @@ export type MilestoneState = 'Not started' | 'Learning' | 'Practiced' | 'Demonst
 export type Milestone={id:string;skill:string;title:string;startLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;structuredLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;practice:string;proveSkill?:string;state?:MilestoneState;notes?:string;evidenceUrl?:string;resourceId?:string|null;hours?:number;done?:boolean};
 export type InterviewPrep = {technical:{question:string;hint:string;answer:string}[];behavioral:{question:string;hint:string;answer:string}[];resumeChecklist:string[];applicationChecklist:string[]};
 export type Plan={id:string;title:string;goal:string;createdAt:string;hoursPerWeek?:number;milestones:Milestone[];interviewPrep?:InterviewPrep};
+<<<<<<< Updated upstream
 export function createPlan(goal:string,skills:string[],hours:number):Plan{const wanted=Array.from(new Set(skills)).slice(0,8);return{id:crypto.randomUUID(),title:`Your path to ${goal}`,goal,hoursPerWeek:Math.max(1,Math.min(30,hours)),createdAt:new Date().toISOString(),milestones:wanted.map((skill,i)=>{const r=resources.find(r=>r.skills.includes(skill))||resources.find(r=>r.skills.some(s=>s.toLowerCase()===skill.toLowerCase()));return{id:`step-${i}`,skill,title:`Build evidence of ${skill.toLowerCase()}`,startLearning:null,structuredLearning:null,practice:r?.practice||`Complete a small practical task demonstrating ${skill.toLowerCase()} and request feedback.`,proveSkill:'Build a project.',state:'Not started',notes:'',evidenceUrl:'',resourceId:r?.id||null,hours:4,done:false}})}}
+=======
+
+export function getSkillResources(skill: string): {
+  startLearning: { title: string; url: string; provider: string; level: string; cost: string };
+  structuredLearning: { title: string; url: string; provider: string; level: string; cost: string };
+  practice: string;
+  proveSkill: string;
+} {
+  const s = skill.trim();
+  const lower = s.toLowerCase();
+  
+  if (lower.includes('react')) {
+    return {
+      startLearning: { title: 'React 19 / 18 Crash Course for Beginners', url: 'https://www.youtube.com/watch?v=w7ejDZ8SWv8', provider: 'Traversy Media · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'React Official Documentation & Interactive Guide', url: 'https://react.dev/learn', provider: 'React Team', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Build a modular dashboard application with reusable components, state hooks (useState, useEffect), and form validation.',
+      proveSkill: 'Develop a responsive web app with client-side routing, theme toggling, and asynchronous API integration; deploy to Vercel.'
+    };
+  }
+  if (lower.includes('typescript')) {
+    return {
+      startLearning: { title: 'TypeScript Full Course for Beginners', url: 'https://www.youtube.com/watch?v=BwuLxPH8IDs', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'The TypeScript Handbook', url: 'https://www.typescriptlang.org/docs/handbook/intro.html', provider: 'Microsoft', level: 'Intermediate', cost: 'Free' },
+      practice: 'Convert an existing JavaScript project to strict TypeScript, defining interfaces, union types, and generic utilities.',
+      proveSkill: 'Build a type-safe REST API client library or utility package with comprehensive unit tests.'
+    };
+  }
+  if (lower.includes('javascript') || lower === 'js') {
+    return {
+      startLearning: { title: 'JavaScript Tutorial for Beginners - Full Course', url: 'https://www.youtube.com/watch?v=W6NZfCO5SIk', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'JavaScript Algorithms and Data Structures', url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/', provider: 'freeCodeCamp', level: 'All levels', cost: 'Free' },
+      practice: 'Implement interactive DOM operations, event handling, and asynchronous API calls using modern async/await syntax.',
+      proveSkill: 'Construct a browser-based application (e.g. kanban board or expense tracker) with persistent local storage.'
+    };
+  }
+  if (lower.includes('node') || lower.includes('express')) {
+    return {
+      startLearning: { title: 'Node.js and Express.js Full Course', url: 'https://www.youtube.com/watch?v=Oe421EPjeBE', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Back End Development and APIs Certification', url: 'https://www.freecodecamp.org/learn/back-end-development-and-apis/', provider: 'freeCodeCamp', level: 'Intermediate', cost: 'Free' },
+      practice: 'Create a RESTful API server with Express, robust error middleware, request validation, and database operations.',
+      proveSkill: 'Build a production-ready API service featuring JWT authentication, rate limiting, and automated endpoint tests.'
+    };
+  }
+  if (lower.includes('next')) {
+    return {
+      startLearning: { title: 'Next.js App Router Tutorial for Beginners', url: 'https://www.youtube.com/watch?v=ZVnjOPwW444', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Next.js Interactive Foundation Course', url: 'https://nextjs.org/learn', provider: 'Vercel', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Build a fast server-rendered web app utilizing Server Components, Server Actions, and dynamic layout routes.',
+      proveSkill: 'Deploy a full-stack Next.js production portal with dynamic SEO tags, caching strategies, and database connection.'
+    };
+  }
+  if (lower.includes('python')) {
+    return {
+      startLearning: { title: 'Python for Beginners - Full Course', url: 'https://www.youtube.com/watch?v=rfscVS0vtbw', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Scientific Computing with Python Certification', url: 'https://www.freecodecamp.org/learn/scientific-computing-with-python/', provider: 'freeCodeCamp', level: 'All levels', cost: 'Free' },
+      practice: 'Write modular Python scripts to parse structured data files, clean datasets, and handle runtime exceptions.',
+      proveSkill: 'Build an automated end-to-end data extraction and analysis pipeline with exported summary visualizations.'
+    };
+  }
+  if (lower.includes('sql') || lower.includes('postgres') || lower.includes('mysql')) {
+    return {
+      startLearning: { title: 'SQL Tutorial - Full Database Course for Beginners', url: 'https://www.youtube.com/watch?v=HXV3zeQKqGY', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Interactive SQL Lessons and Challenges', url: 'https://sqlbolt.com/', provider: 'SQLBolt', level: 'Beginner', cost: 'Free' },
+      practice: 'Write complex multi-table queries utilizing INNER/LEFT JOINs, subqueries, GROUP BY aggregations, and window functions.',
+      proveSkill: 'Design an optimal third-normal-form relational schema with proper foreign keys, constraints, and query indexes.'
+    };
+  }
+  if (lower.includes('git')) {
+    return {
+      startLearning: { title: 'Git and GitHub for Beginners - Crash Course', url: 'https://www.youtube.com/watch?v=RGOj5yH7evk', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Pro Git Book (Complete Reference)', url: 'https://git-scm.com/book/en/v2', provider: 'Git-SCM', level: 'Intermediate', cost: 'Free' },
+      practice: 'Practice branching, staging, atomic commits, interactive rebasing, and resolving tricky merge conflicts.',
+      proveSkill: 'Set up an open-source GitHub repository with issue templates, branch protection rules, and CI validation.'
+    };
+  }
+  if (lower.includes('docker')) {
+    return {
+      startLearning: { title: 'Docker Tutorial for Beginners', url: 'https://www.youtube.com/watch?v=fqMOX6JJhGo', provider: 'TechWorld with Nana · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Docker Official Getting Started Guide', url: 'https://docs.docker.com/get-started/', provider: 'Docker', level: 'Beginner', cost: 'Free' },
+      practice: 'Write an optimized multi-stage Dockerfile for a web application and manage local containers and volumes.',
+      proveSkill: 'Create a docker-compose.yml setup orchestrating frontend, backend API, and database services with networking.'
+    };
+  }
+  if (lower.includes('kubernetes') || lower === 'k8s') {
+    return {
+      startLearning: { title: 'Kubernetes Crash Course for Beginners', url: 'https://www.youtube.com/watch?v=X48VuDVv0do', provider: 'TechWorld with Nana · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Kubernetes Official Tutorials', url: 'https://kubernetes.io/docs/tutorials/', provider: 'CNCF', level: 'Intermediate', cost: 'Free' },
+      practice: 'Deploy application Pods, Services, and Deployments to a local Minikube or kind cluster.',
+      proveSkill: 'Set up Ingress routing, ConfigMaps, and PersistentVolumeClaims for a production-like microservice deployment.'
+    };
+  }
+  if (lower.includes('aws') || lower.includes('cloud')) {
+    return {
+      startLearning: { title: 'AWS Certified Cloud Practitioner Training', url: 'https://www.youtube.com/watch?v=SOTamWNgDKc', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'AWS Skill Builder Free Learning Path', url: 'https://explore.skillbuilder.aws/', provider: 'Amazon Web Services', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Deploy a static frontend on AWS S3 with CloudFront and configure IAM policies and roles with least privilege.',
+      proveSkill: 'Build a serverless REST API using AWS Lambda, API Gateway, and DynamoDB.'
+    };
+  }
+  if (lower.includes('tailwind')) {
+    return {
+      startLearning: { title: 'Tailwind CSS Full Course for Beginners', url: 'https://www.youtube.com/watch?v=lCxcTsOHrjo', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Tailwind CSS Documentation & Utility Reference', url: 'https://tailwindcss.com/docs', provider: 'Tailwind Labs', level: 'Beginner', cost: 'Free' },
+      practice: 'Recreate a modern landing page hero and features section using utility classes, grid, and responsive breakpoints.',
+      proveSkill: 'Build a fully responsive, accessible component library with dark mode support using Tailwind CSS.'
+    };
+  }
+  if (lower.includes('machine learning') || lower.includes('deep learning') || lower.includes('ai')) {
+    return {
+      startLearning: { title: 'Machine Learning for Everybody - Full Course', url: 'https://www.youtube.com/watch?v=i_LwzRVP7bg', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Machine Learning Specialization', url: 'https://www.coursera.org/specializations/machine-learning-introduction', provider: 'Coursera · Andrew Ng', level: 'Beginner to Intermediate', cost: 'Free audit' },
+      practice: 'Train and evaluate supervised classification and regression models using scikit-learn on a benchmark dataset.',
+      proveSkill: 'Deliver a machine learning project notebook with data cleaning, feature engineering, cross-validation, and metrics.'
+    };
+  }
+  if (lower === 'r' || lower.includes('r programming') || lower.includes('r language')) {
+    return {
+      startLearning: { title: 'R Programming Tutorial - Learn the Basics', url: 'https://www.youtube.com/watch?v=_V8eKsto3Ug', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Introduction to R for Data Science', url: 'https://www.edx.org/learn/r-programming', provider: 'edX', level: 'Beginner', cost: 'Free audit' },
+      practice: 'Load tabular data into R data frames, compute summary statistics, and generate publication-quality ggplot2 charts.',
+      proveSkill: 'Conduct an exploratory data analysis project with statistical hypothesis testing and reproducible RMarkdown report.'
+    };
+  }
+
+  // Smart fallback for any other skill
+  const matchedResource = resources.find(r => r.skills.some(sk => sk.toLowerCase() === lower));
+  return {
+    startLearning: {
+      title: `${s} Crash Course & Core Concepts`,
+      url: matchedResource?.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(s + ' tutorial for beginners')}`,
+      provider: matchedResource?.provider || 'Developer Education · YouTube',
+      level: 'Beginner',
+      cost: 'Free'
+    },
+    structuredLearning: {
+      title: `${s} Documentation & Interactive Learning`,
+      url: matchedResource?.url || `https://www.google.com/search?q=${encodeURIComponent(s + ' official documentation tutorial')}`,
+      provider: matchedResource?.provider || 'Official Documentation & Guides',
+      level: 'Intermediate',
+      cost: 'Free'
+    },
+    practice: matchedResource?.practice || `Complete foundational exercises to understand the core concepts, syntax, and workflow of ${s}.`,
+    proveSkill: `Build a small real-world project or module demonstrating hands-on competence in ${s}.`
+  };
+}
+
+export function getInterviewPrepForGoal(goal: string, skills: string[]): InterviewPrep {
+  const topSkills = skills.slice(0, 3).join(' and ') || 'the required technologies';
+  const role = goal.replace(/^Job Application \(from Compass\)$/i, 'Software Engineering Role').replace(/^Target Job Role$/i, 'Professional Technical Role');
+  return {
+    technical: [
+      {
+        question: `How do you explain the core concepts and best practices when working with ${skills[0] || 'your primary stack'}?`,
+        hint: `Discuss fundamentals, common pitfalls, performance considerations, and how you structure code maintainably.`,
+        answer: `Provide a clear high-level definition, explain typical architectural patterns, describe error handling, and illustrate with an experience where you applied it effectively.`
+      },
+      {
+        question: `Can you walk through a time you had to debug a difficult issue involving ${skills[1] || 'system integration'}?`,
+        hint: `Outline your systematic troubleshooting steps: reproducing the bug, inspecting logs/network, isolating root causes, and writing regression tests.`,
+        answer: `Structure the response using STAR: describe the symptoms, how you verified assumptions, identified the exact failure point, and shipped a verified fix.`
+      },
+      {
+        question: `How do you ensure scalability, code quality, and security when building features for ${role}?`,
+        hint: `Mention testing methodologies, code reviews, clean separation of concerns, and security considerations (input validation, auth, secrets).`,
+        answer: `Explain that scalability starts with simple, modular design, automated unit/integration tests, defensive programming, and continuous monitoring.`
+      }
+    ],
+    behavioral: [
+      {
+        question: `Describe a situation where you had to quickly learn a new technology or skill (like ${skills[0] || 'a new framework'}) under a tight deadline.`,
+        hint: `Focus on your learning strategy: documentation, building minimal prototypes, seeking feedback, and delivering on time.`,
+        answer: `Highlight your initiative, resourcefulness, structured approach to breaking down the topic, and delivering a functional solution on schedule.`
+      },
+      {
+        question: `Tell me about a time you disagreed with a teammate or technical decision. How did you handle it?`,
+        hint: `Demonstrate empathy, evidence-based reasoning, focus on project goals rather than ego, and commitment to the team once a decision was made.`,
+        answer: `Frame it around listening first, discussing tradeoffs objectively with data/benchmarks, and maintaining strong collaborative alignment.`
+      },
+      {
+        question: `What excites you most about this role and how does your skill journey prepare you for it?`,
+        hint: `Connect your target learning roadmap directly to the company's domain and mission.`,
+        answer: `Express genuine curiosity for the problem space, mention the specific skills you have strengthened, and show eagerness to create immediate impact.`
+      }
+    ],
+    resumeChecklist: [
+      `Feature ${topSkills} prominently in your technical skills and project descriptions.`,
+      `Quantify accomplishments with metrics (e.g., 'reduced load time by 30%', 'automated workflow saving 5 hrs/week').`,
+      `Include live demo links and clean GitHub repositories with comprehensive README files.`,
+      `Tailor your professional summary to reflect the specific requirements of ${role}.`
+    ],
+    applicationChecklist: [
+      `Review company engineering blogs, open source repos, and recent product launches before applying.`,
+      `Customise your cover letter or introductory note highlighting how your recent skills align with their open role.`,
+      `Prepare a 2-minute elevator pitch summarizing your background, key strengths, and learning trajectory.`,
+      `Follow up politely with the hiring manager or technical recruiter on LinkedIn within 5–7 days.`
+    ]
+  };
+}
+
+export function createPlan(goal:string,skills:string[],hours:number):Plan{
+  const wanted=Array.from(new Set(skills)).slice(0,8);
+  const cleanGoal = goal?.trim() || 'Software Developer';
+  return {
+    id:crypto.randomUUID(),
+    title:`Your path to ${cleanGoal}`,
+    goal: cleanGoal,
+    hoursPerWeek:Math.max(1,Math.min(30,hours)),
+    createdAt:new Date().toISOString(),
+    milestones:wanted.map((skill,i)=>{
+      const r=resources.find(r=>r.skills.includes(skill));
+      const enriched = getSkillResources(skill);
+      return {
+        id:`step-${i}`,
+        skill,
+        title:`Master ${skill}`,
+        startLearning: enriched.startLearning,
+        structuredLearning: enriched.structuredLearning,
+        practice: enriched.practice,
+        proveSkill: enriched.proveSkill,
+        state:'Not started' as MilestoneState,
+        notes:'',
+        evidenceUrl:'',
+        resourceId:r?.id||null,
+        hours:4,
+        done:false
+      };
+    }),
+    interviewPrep: getInterviewPrepForGoal(cleanGoal, wanted)
+  };
+}
+>>>>>>> Stashed changes
 export function exportPlan(p:Plan){return `# ${p.title}\n\n`+p.milestones.map((m,i)=>{return `## ${i+1}. ${m.title}\n- Status: ${m.state||(m.done?'Demonstrated':'Not started')}\n`}).join('\n')}

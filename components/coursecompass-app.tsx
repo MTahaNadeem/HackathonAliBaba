@@ -293,11 +293,28 @@ export default function CourseCompassApp() {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const skillsList = Array.from(new Set([
+      ...(profile.skills || []),
+      ...(profile.extractedSkills ? profile.extractedSkills.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [])
+    ]));
+    try {
+      localStorage.setItem('coursecompass_skills', JSON.stringify(skillsList));
+      localStorage.setItem('coursecompass_profile', JSON.stringify(profile));
+      document.body.setAttribute('data-coursecompass-skills', skillsList.join(','));
+    } catch {}
+  }, [profile]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const skills = params.get('skills');
     const source = params.get('source');
-    if (skills && source === 'extension') {
-      startPlan('Job Application (from Compass)', skills.split(','));
+    if (skills) {
+      const goal = params.get('goal') || params.get('role') || 'Job Application Target';
+      const cleanSkills = skills.split(',').map(s => s.trim()).filter(Boolean);
+      if (cleanSkills.length > 0) {
+        startPlan(goal, cleanSkills);
+      }
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     }
   }, [startPlan]);
