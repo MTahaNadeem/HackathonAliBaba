@@ -648,3 +648,49 @@
   }
 }
 
+/* ── Journey Switcher (Student / Career) in Top Navigation ────────────── */
+.journey-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: #edf3fb;
+  border: 1px solid #d5e2f1;
+  border-radius: 30px;
+  padding: 3px;
+  gap: 3px;
+}
+.journey-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 0;
+  background: transparent;
+  color: #556983;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 32px;
+}
+.journey-switcher-btn:hover {
+  color: #172b48;
+}
+.journey-switcher-btn.active {
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(20, 45, 82, 0.08);
+}
+.journey-switcher-btn.active.student {
+  color: #275abf;
+}
+.journey-switcher-btn.active.career {
+  color: #236c4f;
+}
+@media (max-width: 600px) {
+  .journey-switcher-btn span {
+    display: none;
+  }
+  .journey-switcher-btn {
+    padding: 6px 10px;
+  }
+}

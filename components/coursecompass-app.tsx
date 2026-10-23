@@ -29,7 +29,7 @@ import Learning from './learning';
 import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
-import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan} from '@/lib/domain';
+import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
@@ -127,6 +127,34 @@ export default function CourseCompassApp() {
     setMobile(false);
     window.location.hash = viewToHash(normalized);
   }, [session, syncing, profile]);
+
+  const currentJourney: Journey = profile.journey || 'student';
+
+  const switchJourney = useCallback((newJourney: Journey) => {
+    if (profile.journey === newJourney) return;
+    const updated: Profile = {
+      ...profile,
+      journey: newJourney,
+    };
+    setProfile(updated);
+
+    // Switch view to align with the journey
+    if (newJourney === 'career') {
+      if (view === 'universities' || view === 'explore' || view === 'dashboard') {
+        go('jobs');
+      }
+    } else {
+      if (view === 'jobs' || view === 'dashboard') {
+        go('universities');
+      }
+    }
+
+    if (sessionRef.current) {
+      persist('/api/profile', updated).catch(err => {
+        console.warn('Could not persist journey preference:', err);
+      });
+    }
+  }, [profile, view, go]);
 
   useEffect(() => {
     function handleHash() {
@@ -542,6 +570,30 @@ export default function CourseCompassApp() {
                   : 'Home'
                 : nav.find(n => n.id === view)?.label || 'My Profile'}
             </strong>
+          </div>
+          <div className="journey-switcher" role="radiogroup" aria-label="Select journey pathway">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={currentJourney === 'student'}
+              className={`journey-switcher-btn ${currentJourney === 'student' ? 'active student' : ''}`}
+              onClick={() => switchJourney('student')}
+              title="Student journey (degrees, university finder, admissions)"
+            >
+              <GraduationCap size={15} />
+              <span>Student</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={currentJourney === 'career'}
+              className={`journey-switcher-btn ${currentJourney === 'career' ? 'active career' : ''}`}
+              onClick={() => switchJourney('career')}
+              title="Career journey (job matches, skill-gap analysis, career paths)"
+            >
+              <BriefcaseBusiness size={15} />
+              <span>Career</span>
+            </button>
           </div>
           <div className="top-actions">
             <span className="guest-pill">
