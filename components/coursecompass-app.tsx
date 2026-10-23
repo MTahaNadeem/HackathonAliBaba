@@ -34,6 +34,7 @@ import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, ty
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
+import {useRecommendations, recommendationProfile} from '@/hooks/use-recommendations';
 
 
 const validViews = ['dashboard', 'explore', 'universities', 'jobs', 'learning', 'profile'];
@@ -88,6 +89,7 @@ export default function CourseCompassApp() {
 
   const profileComplete = isProfileComplete(profile);
   const requiresOnboarding = Boolean(session && !syncing && !profileComplete);
+  const recommendations = useRecommendations(profile, !syncing && (profile.journey === 'career' || (profile.subjects?.length ?? 0) > 0 || (profile.interests?.length ?? 0) > 0));
 
   // Forced redirect for authenticated users with incomplete profiles
   useEffect(() => {
@@ -303,7 +305,7 @@ export default function CourseCompassApp() {
       setBusy(true);
       toast('Generating your personalised learning plan...', { duration: 3000 });
       try {
-        const r = await fetch('/api/plans/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goalTitle, skills: skillsList.slice(0, 8) }) });
+        const r = await fetch('/api/plans/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goalTitle, skills: skillsList.slice(0, 8), profile: recommendationProfile(profile) }) });
         if(r.ok) {
           const p = await r.json() as Plan;
           await updatePlan(p);
@@ -319,7 +321,7 @@ export default function CourseCompassApp() {
       toast.success(session ? 'Your learning plan is ready.' : 'Plan ready for this session. Download it to keep a copy.');
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile.hours, session, go]
+    [profile, session, go]
   );
 
   useEffect(() => {
@@ -657,9 +659,10 @@ export default function CourseCompassApp() {
               onStartStudentOnboarding={() => setStudentOnboardingOpen(true)}
               onSelectDegree={handleSelectDegree}
               liveUniversities={catalogueData?.universities}
+              recommendations={recommendations}
             />
           )}
-          {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} />}
+          {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} recommendations={recommendations} />}
           {view === 'universities' && (
             <Universities
               profile={profile}
@@ -670,7 +673,7 @@ export default function CourseCompassApp() {
               lastRunOk={catalogueData?.ingestion?.last_run_ok}
             />
           )}
-          {view === 'jobs' && <Jobs profile={profile} onPlan={startPlan} />}
+          {view === 'jobs' && <Jobs profile={profile} onPlan={startPlan} recommendations={recommendations} />}
           {view === 'learning' && (
             <Learning plan={plan} profile={profile} onUpdate={updatePlan} onCreate={startPlan} go={go} />
           )}
