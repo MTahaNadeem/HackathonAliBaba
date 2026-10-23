@@ -5,6 +5,156 @@ export type UserProfile = Profile;
 export const emptyProfile:Profile={name:'',stage:'Choosing a degree',qualification:'FSc',subjects:[],interests:[],skills:[],city:'',budget:null,hours:5,ssc:null,hssc:null,equivalence:false,net:null,goal:'',relocate:false,experience:'',projects:'',certifications:'',links:'',resumeText:'',extractedSkills:'',journey:'student',student_knows_degree:undefined,specialization:'',career_goal:''};
 export function recommend(p:Profile){return degrees.map(d=>{const interests=d.interests.filter(i=>p.interests.includes(i));const subjects=d.subjects.filter(i=>p.subjects.includes(i));return {...d,reasons:[...interests.map(i=>`You enjoy ${i.toLowerCase()}`),...subjects.map(i=>`Connects with ${i}`)],score:interests.length*2+subjects.length}}).sort((a,b)=>b.score-a.score)}
 
+export interface DegreeRecommendation {
+  degree: (typeof degrees)[number];
+  score: number; // 0 - 100 normalized relevance estimate
+  reasons: string[];
+  isPreliminary: boolean;
+}
+
+/**
+ * Deterministically ranks up to `limit` relevant degrees based on user's actual subjects and interests.
+ * Normalizes relevance to 0–100 scale and provides factual, profile-based explanations.
+ * Never returns unrelated degrees with zero match just to fill slots.
+ */
+export function rankTopDegrees(p: Profile, limit = 5): DegreeRecommendation[] {
+  const userSubjects = Array.isArray(p.subjects) ? p.subjects : [];
+  const userInterests = Array.isArray(p.interests) ? p.interests : [];
+  const userSkills = Array.isArray(p.skills) ? p.skills : [];
+
+  const hasInputs = userSubjects.length > 0 || userInterests.length > 0;
+
+  if (!hasInputs) {
+    return degrees.slice(0, Math.min(limit, degrees.length)).map(d => ({
+      degree: d,
+      score: 50,
+      reasons: ['Preliminary recommendation. Add your high-school subjects and interests for personalized ranking.'],
+      isPreliminary: true,
+    }));
+  }
+
+  const scored = degrees
+    .map(d => {
+      const subjectMatches = d.subjects.filter(s =>
+        userSubjects.some(us => us.toLowerCase() === s.toLowerCase())
+      );
+      const interestMatches = d.interests.filter(i =>
+        userInterests.some(ui => ui.toLowerCase() === i.toLowerCase())
+      );
+      const skillMatches = d.skills.filter(sk =>
+        userSkills.some(usk => usk.toLowerCase() === sk.toLowerCase())
+      );
+
+      const reasons: string[] = [];
+      subjectMatches.forEach(s => reasons.push(`Directly connects with your ${s} background`));
+      interestMatches.forEach(i => reasons.push(`Matches your interest in ${i.toLowerCase()}`));
+      if (skillMatches.length > 0) {
+        reasons.push(`Applies your ${skillMatches.slice(0, 2).join(' & ')} skills`);
+      }
+
+      const maxPossible = d.subjects.length * 3 + d.interests.length * 2;
+      const rawScore = subjectMatches.length * 3 + interestMatches.length * 2 + Math.min(skillMatches.length, 2);
+
+      const normalizedScore =
+        rawScore > 0 ? Math.min(98, Math.max(30, Math.round((rawScore / maxPossible) * 100))) : 0;
+
+      return {
+        degree: d,
+        score: normalizedScore,
+        rawScore,
+        reasons: reasons.slice(0, 3),
+        isPreliminary: false,
+      };
+    })
+    .filter(item => item.rawScore > 0)
+    .sort((a, b) => b.score - a.score || b.rawScore - a.rawScore);
+
+  return scored.slice(0, limit).map(({ degree, score, reasons, isPreliminary }) => ({
+    degree,
+    score,
+    reasons,
+    isPreliminary,
+  }));
+}
+
+export interface RankedUniversity {
+  university: University;
+  assessment: ReturnType<typeof assessUniversity>;
+  tuitionDisplay: ReturnType<typeof getFeeDisplay>;
+  relevanceScore: number;
+  matchReasons: string[];
+}
+
+/**
+ * Filters universities strictly to those that offer targetDegreeId,
+ * evaluates eligibility and costs via assessUniversity(), and ranks qualifying institutions.
+ */
+export function rankTopUniversities(
+  source: University[],
+  p: Profile,
+  targetDegreeId?: string,
+  limit = 5
+): RankedUniversity[] {
+  const goalId = targetDegreeId || p.goal;
+  if (!goalId) return [];
+
+  // Strictly filter to universities offering this exact degree
+  const offerings = source.filter(u => u.degreeId === goalId);
+  if (offerings.length === 0) return [];
+
+  const ranked = offerings.map(u => {
+    const assessment = assessUniversity(u, p);
+    const tuitionDisplay = getFeeDisplay(u);
+    const matchReasons: string[] = [];
+
+    let score = 50;
+
+    // Academic eligibility
+    if (assessment.status === 'Academic minimum met') {
+      score += 30;
+      matchReasons.push('Meets published academic minimum');
+    } else if (assessment.status === 'Subject route needs review') {
+      score += 15;
+      matchReasons.push('Subject combination needs departmental check');
+    } else if (assessment.status === 'Check current admissions') {
+      score += 10;
+      matchReasons.push('Current admission rules need portal check');
+    } else if (assessment.status === 'Below published minimum') {
+      score -= 20;
+    }
+
+    // City preference
+    const userCity = p.city?.trim();
+    if (userCity && u.city.toLowerCase() === userCity.toLowerCase()) {
+      score += 15;
+      matchReasons.push(`Located in your preferred city (${u.city})`);
+    } else if (p.relocate) {
+      score += 5;
+    }
+
+    // Budget fit
+    if (assessment.budget === 'Within semester budget') {
+      score += 15;
+      matchReasons.push('Verified tuition fits within semester budget');
+    } else if (assessment.budget === 'Add your budget') {
+      matchReasons.push('Add budget to evaluate semester cost fit');
+    } else if (assessment.budget === 'Costs need checking') {
+      matchReasons.push('Official fee confirmation needed from university');
+    }
+
+    return {
+      university: u,
+      assessment,
+      tuitionDisplay,
+      relevanceScore: score,
+      matchReasons: matchReasons.slice(0, 3),
+    };
+  });
+
+  ranked.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  return ranked.slice(0, limit);
+}
+
 /**
  * Checks whether a user profile has the minimum required preferences filled
  * to enable meaningful site-wide personalization:
@@ -16,10 +166,15 @@ export function recommend(p:Profile){return degrees.map(d=>{const interests=d.in
 export function isProfileComplete(p: Profile | null | undefined): boolean {
   if (!p) return false;
   const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
-  const hasGoal = Boolean(p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal));
+  const hasGoalOrModelRecommendation = Boolean(
+    (p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal)) ||
+    p.student_knows_degree === false ||
+    (Array.isArray(p.interests) && p.interests.length > 0) ||
+    (Array.isArray(p.subjects) && p.subjects.length > 0)
+  );
   const hasCity = Boolean(p.city && p.city.trim().length > 0);
   const hasBudget = typeof p.budget === 'number' && !isNaN(p.budget) && p.budget > 0;
-  return Boolean(hasQualification && hasGoal && hasCity && hasBudget);
+  return Boolean(hasQualification && hasGoalOrModelRecommendation && hasCity && hasBudget);
 }
 
 export function getProfileDirection(p: Profile | null | undefined) {

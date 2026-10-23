@@ -694,3 +694,100 @@
     padding: 6px 10px;
   }
 }
+
+/* ── Top 5 Degree Recommendation Section ───────────────────────────── */
+.top-degrees-section {
+  margin-top: 28px;
+}
+.degree-rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+.degree-rec-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+}
+.degree-rec-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(20, 45, 82, 0.07);
+  border-color: #c4d6ec;
+}
+.degree-rec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.degree-score-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+}
+.degree-score-pill.high {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #d1fae5;
+}
+.degree-rec-field {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.degree-rec-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--midnight);
+  letter-spacing: -0.4px;
+  margin: 0 0 6px;
+}
+.degree-rec-tagline {
+  font-size: 13px;
+  color: var(--secondary);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.degree-rec-reasons {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+.degree-rec-reasons li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  color: #3b506c;
+  line-height: 1.4;
+}
+.degree-rec-reasons svg {
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.degree-rec-card .button {
+  margin-top: auto;
+  font-size: 13px;
+  padding: 10px 14px;
+  min-height: 40px;
+  width: 100%;
+}

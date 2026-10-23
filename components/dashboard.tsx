@@ -21,7 +21,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import {degrees, universities as catalogueUniversities, type Degree, type VerificationStatus} from '@/lib/catalogue';
-import {assessUniversity, emptyProfile, type Profile, type Plan} from '@/lib/domain';
+import {assessUniversity, emptyProfile, rankTopDegrees, type Profile, type Plan} from '@/lib/domain';
 import {Progress} from '@/components/ui/progress';
 
 // ── SVG Radial Progress Ring
@@ -99,13 +99,16 @@ export interface DashboardProps {
   plan?: Plan | null;
   onStartPlan?: (goal: string, skills: string[]) => void;
   onSignIn?: () => void;
+  onStartStudentOnboarding?: () => void;
+  onSelectDegree?: (degreeId: string) => void;
 }
 
-export default function Dashboard({go, onChat, session, profile = emptyProfile, plan = null, onStartPlan, onSignIn}: DashboardProps) {
+export default function Dashboard({go, onChat, session, profile = emptyProfile, plan = null, onStartPlan, onSignIn, onStartStudentOnboarding, onSelectDegree}: DashboardProps) {
   const [showGuide, setShowGuide] = useState(false);
 
   if (session && !showGuide) {
     const goal = degrees.find(d => d.id === profile.goal);
+    const topDegrees = rankTopDegrees(profile, 5);
     const isMilestoneDone = (m: any) => Boolean(m.done || m.state === 'Demonstrated');
     const completed = plan?.milestones.filter(isMilestoneDone).length ?? 0;
     const total = plan?.milestones.length ?? 0;
@@ -276,6 +279,83 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
           </section>
         </div>
 
+        {/* Top 5 Personalized Degree Paths */}
+        {topDegrees.length > 0 && (
+          <section className="form-section top-degrees-section" aria-labelledby="top-degrees-heading" style={{marginTop: '24px'}}>
+            <div className="form-section-heading">
+              <span><Sparkles size={18} style={{color: '#2563eb'}} /></span>
+              <div style={{flex: 1}}>
+                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px'}}>
+                  <h2 id="top-degrees-heading">Top 5 Degree Paths for You</h2>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    {onStartStudentOnboarding && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        style={{fontSize: '12.5px', color: '#2563eb'}}
+                        onClick={onStartStudentOnboarding}
+                      >
+                        Retake questionnaire
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="button outline"
+                      style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
+                      onClick={() => go('explore')}
+                    >
+                      Explore all 33 degrees <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
+                <p>
+                  Deterministic match estimates based on your high-school subjects and interests. Select any degree to explore eligible Pakistani universities.
+                </p>
+              </div>
+            </div>
+
+            <div className="degree-rec-grid">
+              {topDegrees.map(rec => {
+                const isSelected = profile.goal === rec.degree.id;
+                return (
+                  <article key={rec.degree.id} className="degree-rec-card">
+                    <div className="degree-rec-header">
+                      <span className="degree-rec-field">{rec.degree.field}</span>
+                      <span className={`degree-score-pill ${rec.score >= 70 ? 'high' : ''}`}>
+                        {rec.score}% Match
+                      </span>
+                    </div>
+                    <h3>{rec.degree.name}</h3>
+                    <p className="degree-rec-tagline">{rec.degree.tagline}</p>
+                    <ul className="degree-rec-reasons">
+                      {rec.reasons.map((r, i) => (
+                        <li key={i}>
+                          <Check size={13} />
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className={`button ${isSelected ? 'mint' : 'dark'}`}
+                      onClick={() => {
+                        if (onSelectDegree) {
+                          onSelectDegree(rec.degree.id);
+                        } else {
+                          go('universities');
+                        }
+                      }}
+                      title={`Select ${rec.degree.name} and explore eligible campuses`}
+                    >
+                      {isSelected ? 'Degree Selected · View Campuses' : 'Select Degree'} <ArrowRight size={14} />
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Up-next milestone */}
         {nextMilestone && (
           <section className="form-section db-next-card" aria-labelledby="next-heading" style={{marginTop: '22px'}}>
@@ -354,7 +434,7 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
           <p className="hero-subtext">Whether you&apos;re choosing a university or preparing for your next job, start with where you are.</p>
         </div>
         <div className="hero-action">
-          <button className="button outline" onClick={() => go('profile')}>Personalise my path <ArrowUpRight size={17} /></button>
+          <button className="button outline" onClick={() => onStartStudentOnboarding ? onStartStudentOnboarding() : go('profile')}>Personalise my path <ArrowUpRight size={17} /></button>
         </div>
       </section>
       <section className="journey-decision-section" aria-label="Choose your journey">
@@ -371,7 +451,7 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
               <li className="journey-highlight-item"><Check size={16} aria-hidden="true" /><span>Admission eligibility, entry tests &amp; merit criteria</span></li>
               <li className="journey-highlight-item"><Check size={16} aria-hidden="true" /><span>Verified university fees &amp; semester budget checks</span></li>
             </ul>
-            <div className="journey-card-footer"><button className="button journey-cta-btn student" onClick={() => go('explore')} aria-label="Explore My Options - Student journey"><span>Explore My Options</span><ArrowRight size={17} /></button></div>
+            <div className="journey-card-footer"><button className="button journey-cta-btn student" onClick={() => onStartStudentOnboarding ? onStartStudentOnboarding() : go('explore')} aria-label="Explore My Options - Student journey"><span>Explore My Options</span><ArrowRight size={17} /></button></div>
           </article>
           <article className="primary-journey-card career-card">
             <div className="journey-card-header">

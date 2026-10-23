@@ -71,8 +71,8 @@ export default function ProfileView({
       setError('Please select your school / college qualification.');
       return;
     }
-    if (!draft.goal?.trim() || !degrees.some((d) => d.id === draft.goal)) {
-      setError('Please select your chosen direction / degree path.');
+    if (draft.goal?.trim() && !degrees.some((d) => d.id === draft.goal)) {
+      setError('Please select a valid degree path or leave it blank to let our model recommend.');
       return;
     }
     if (!draft.city?.trim()) {
@@ -83,7 +83,11 @@ export default function ProfileView({
       setError('Please enter a valid semester budget (greater than PKR 0).');
       return;
     }
-    const p = profileSchema.safeParse(draft);
+    const toSave: Profile = {
+      ...draft,
+      student_knows_degree: draft.goal ? true : (draft.student_knows_degree ?? false),
+    };
+    const p = profileSchema.safeParse(toSave);
     if (!p.success) {
       setError(p.error.issues[0]?.message || 'Check your fields.');
       return;
@@ -233,7 +237,7 @@ export default function ProfileView({
               Complete a few details to personalize your experience
             </strong>
             <span style={{ color: '#3b82f6', fontSize: '13px' }}>
-              Please set your <strong>qualification</strong>, <strong>chosen direction</strong>, <strong>city</strong>, and <strong>semester budget</strong> below to unlock tailored recommendations across the platform.
+              Please set your <strong>qualification</strong>, <strong>city</strong>, and <strong>semester budget</strong> below to unlock tailored recommendations. You can also specify a <strong>chosen direction</strong> or leave it open to let our model decide.
             </span>
           </div>
         </div>
@@ -321,7 +325,7 @@ export default function ProfileView({
             />
             <label className="field">
               <span>
-                Chosen direction / Field of interest <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
+                Chosen direction / Field of interest <small style={{ color: '#64748b', fontWeight: 400 }}>(Optional — leave blank to let our model recommend)</small>
               </span>
               <select
                 aria-label="Chosen direction / field of interest"
@@ -338,9 +342,8 @@ export default function ProfileView({
                 }}
                 value={draft.goal || ''}
                 onChange={(e) => change('goal', e.target.value)}
-                required
               >
-                <option value="">Select your academic direction / degree path…</option>
+                <option value="">Leave unselected to let our model recommend degree paths…</option>
                 {['Technology', 'Engineering', 'Business', 'Social sciences', 'Arts & design', 'Sciences', 'Health', 'Humanities'].map((f) => {
                   const degsInField = degrees.filter((d) => d.field === f);
                   if (!degsInField.length) return null;

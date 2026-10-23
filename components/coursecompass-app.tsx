@@ -29,6 +29,7 @@ import Learning from './learning';
 import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
+import StudentOnboarding from './student-onboarding';
 import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
@@ -69,6 +70,7 @@ export default function CourseCompassApp() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [adviser, setAdviser] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [studentOnboardingOpen, setStudentOnboardingOpen] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -348,7 +350,7 @@ export default function CourseCompassApp() {
   }, [startPlan]);
 
   function selectGoal(d: Degree) {
-    const p = {...profile, goal: d.id};
+    const p = {...profile, goal: d.id, student_knows_degree: true};
     setProfile(p);
     void persist('/api/profile', p)
       .then(saved => setSync(saved ? 'Saved to account' : 'Guest session'))
@@ -356,9 +358,28 @@ export default function CourseCompassApp() {
         setSync('Unsaved changes');
         toast.error('Direction selected, but account save failed.');
       });
-    toast.success(`${d.name} is your current direction.`);
-    go('dashboard');
+    toast.success(`${d.name} selected. Showing verified university campuses.`);
+    go('universities');
   }
+
+  const handleSelectDegree = useCallback((degreeId: string) => {
+    const d = degrees.find(deg => deg.id === degreeId);
+    const updated: Profile = {
+      ...profile,
+      goal: degreeId,
+      student_knows_degree: true,
+    };
+    setProfile(updated);
+    void persist('/api/profile', updated)
+      .then(saved => setSync(saved ? 'Saved to account' : 'Guest session'))
+      .catch(() => {
+        setSync('Unsaved changes');
+      });
+    if (d) {
+      toast.success(`${d.name} selected. Showing verified university campuses.`);
+    }
+    go('universities');
+  }, [profile, go]);
 
   async function signOut() {
     await client?.auth.signOut();
@@ -633,6 +654,8 @@ export default function CourseCompassApp() {
               plan={plan}
               onStartPlan={startPlan}
               onSignIn={() => setAuthOpen(true)}
+              onStartStudentOnboarding={() => setStudentOnboardingOpen(true)}
+              onSelectDegree={handleSelectDegree}
             />
           )}
           {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} />}
@@ -697,6 +720,20 @@ export default function CourseCompassApp() {
         client={client}
         recovery={recovery}
         onRecovered={() => setRecovery(false)}
+      />
+      <StudentOnboarding
+        open={studentOnboardingOpen}
+        onOpenChange={setStudentOnboardingOpen}
+        profile={profile}
+        onSaveProfile={saveProfile}
+        onDegreeSelectedAndFindUnis={(degId, updated) => {
+          setProfile(updated);
+          go('universities');
+        }}
+        onCompletedExploreDegrees={updated => {
+          setProfile(updated);
+          go('dashboard');
+        }}
       />
       <Toaster position="bottom-center" />
     </SidebarProvider>
