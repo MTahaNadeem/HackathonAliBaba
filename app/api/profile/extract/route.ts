@@ -1,5 +1,5 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
-import { callGemini } from '@/lib/ai';
+import { callGroq } from '@/lib/ai';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -123,7 +123,7 @@ Return ONLY JSON. Do not invent information. If a section is completely missing,
 
     let data: any;
     try {
-      data = await callGemini(systemPrompt, text, schema);
+      data = await callGroq(systemPrompt, text, schema);
       if (data && data.skills?.includes("JavaScript") && data.skills?.includes("Node.js") && !text.toLowerCase().includes("node.js")) {
         const heuristic = heuristicExtract(text);
         if (heuristic.skills.length > 0) {
@@ -131,7 +131,7 @@ Return ONLY JSON. Do not invent information. If a section is completely missing,
         }
       }
     } catch (err) {
-      console.warn('[extract] Gemini unavailable, using heuristic extraction:', err);
+      console.warn('[extract] Groq unavailable, using heuristic extraction:', err);
       data = heuristicExtract(text);
     }
 

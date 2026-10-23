@@ -12,7 +12,7 @@ async function post<T>(path: string, body: unknown) {
   });
   assert.equal(response.status, 200, `${path} failed`);
   const data = await response.json() as T & { source: string; fallbackUsed: boolean };
-  assert.equal(data.source, 'qwen', 'A genuine Qwen result is required. Check server configuration and safe diagnostics.');
+  assert.equal(data.source, 'groq', 'A genuine Groq result is required. Check server configuration and safe diagnostics.');
   assert.equal(data.fallbackUsed, false);
   return data;
 }

@@ -1,29 +1,31 @@
-import { config } from './server';
+export async function callGroq(systemPrompt: string, userContent: string, schema?: object) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('AI is not configured. GROQ_API_KEY is missing.');
+  
+  const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+  
+  const systemInstruction = schema 
+    ? `${systemPrompt}\n\nYou must respond with a strictly valid JSON object matching this schema:\n${JSON.stringify(schema, null, 2)}\nDo not enclose the JSON in markdown code blocks if possible, or output clean JSON.`
+    : systemPrompt;
 
-export async function callGemini(systemPrompt: string, userContent: string, schema?: object) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('AI is not configured. GEMINI_API_KEY is missing.');
-  
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  
   const body: any = {
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent }] }],
-    generationConfig: {
-      temperature: 0.2,
-    }
+    model,
+    messages: [
+      { role: 'system', content: systemInstruction },
+      { role: 'user', content: userContent }
+    ],
+    temperature: 0.2
   };
 
   if (schema) {
-    body.generationConfig.responseMimeType = 'application/json';
-    body.generationConfig.responseSchema = schema;
+    body.response_format = { type: 'json_object' };
   }
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30000)
@@ -31,9 +33,9 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
 
   if (!response.ok) {
     const text = await response.text();
-    console.error('Gemini error:', text);
+    console.error('Groq error:', text);
     
-    // Hackathon fallback if AI quota is reached or key is invalid
+    // Fallback if AI quota is reached or key is invalid
     if (schema) {
       if ((schema as any)?.properties?.skills) {
         console.warn('Falling back to mock data for CV extraction due to AI provider error.');
@@ -50,13 +52,17 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
   }
 
   const data = await response.json() as any;
-  const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const reply = data.choices?.[0]?.message?.content;
   
   if (!reply) throw new Error('Empty AI response.');
   
   if (schema) {
     try {
-      return JSON.parse(reply);
+      let cleaned = reply.trim();
+      if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+      return JSON.parse(cleaned);
     } catch (e) {
       throw new Error('AI returned malformed JSON.');
     }
@@ -64,3 +70,6 @@ export async function callGemini(systemPrompt: string, userContent: string, sche
   
   return reply;
 }
+
+// Aliases for compatibility
+export const callGemini = callGroq;

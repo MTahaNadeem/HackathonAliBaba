@@ -17,11 +17,11 @@ Use Node 22.13 or later. Run `npm ci`, copy `.env.example` to `.env.local`, and 
 
 Security: RLS ties private rows to `auth.uid()`. The server validates bearer tokens via Supabase Auth. Anonymous users cannot access private profile/plan tables. Sign-out clears session state. Authentication tokens use the Supabase SDK's standard browser session persistence; student records are stored in PostgreSQL.
 
-## Gemini free tier
+## Groq Cloud AI
 
-Create a developer API key at https://aistudio.google.com/apikey on a project **without Cloud Billing enabled**. Set `GEMINI_API_KEY` and `GEMINI_MODEL=gemini-2.5-flash` on the server. Never prefix the secret with `NEXT_PUBLIC_`. CourseCompass AI makes no billing/account changes and has no paid fallback. An API key does not reveal whether its Google project has billing enabled; the account owner must verify that setting.
+Create an API key at https://console.groq.com/keys. Set `GROQ_API_KEY` and `GROQ_MODEL=openai/gpt-oss-120b` on the server. Never prefix the secret with `NEXT_PUBLIC_`. CourseCompass AI uses Groq's high-speed inference for AI advisory chat, CV analysis, job matching, and roadmap personalization.
 
-AI use is opt-in in the adviser. Only the message, selected goal and selected skill names are sent; profile names, emails and academic results are omitted. Users should not paste private information in messages. Free-tier data handling differs from paid services: see https://ai.google.dev/gemini-api/terms and the pricing page before a public launch. If the key, network, model or free quota fails, the UI explicitly switches to the deterministic guided adviser.
+AI use is opt-in in the adviser. Only the message, selected goal and selected skill names are sent; profile names, emails and academic results are omitted. Users should not paste private information in messages. If the key, network, model or quota fails, the UI explicitly switches to the deterministic guided adviser without crashing.
 
 The initial AI throttle is 15 requests per account per hour per server instance; guest requests share one bucket. This protects a private hackathon preview but is not a distributed public-launch quota. Before a public launch, move quota accounting to an atomic PostgreSQL function or edge rate limiter, and validate age/consent requirements for your intended audience.
 

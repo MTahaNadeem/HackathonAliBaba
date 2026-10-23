@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { degrees, resources, roles, skillNames } from '../catalogue';
 import { analyseJob, createPlan, rankTopDegrees, recommend, type Profile } from '../domain';
-import { requestQwen, logFallback, type QwenRequest } from './qwen-provider';
+import { requestGroq, logFallback, type GroqRequest } from './groq-provider';
 import { rankingPrompt, roadmapPrompt } from './prompts';
 
 const text = z.string().trim().min(1).max(500).refine(s => !/(?:https?:|www\.|\]\(|\b[\w-]+\.(?:com|org|edu|pk)\b)/i.test(s));
@@ -17,7 +17,7 @@ function exactIds(ids: string[], expected: string[]) {
     throw new Error('Invalid candidate set');
   }
 }
-// No names, contact details, raw CVs or arbitrary biography text are sent to Qwen.
+// No names, contact details, raw CVs or arbitrary biography text are sent to Groq.
 export function recommendationContext(p: Profile) {
   const cv = (p.extractedSkills || '').split(/[,;\n]/).map(s => s.trim().toLowerCase());
   return {
@@ -46,7 +46,7 @@ export function careerCandidates(p: Profile) {
 }
 // 90% deterministic / 10% model; at most a ten-point adjustment, never a success probability.
 const blend = (baseline: number, ai: number) => Math.round(baseline * 0.9 + ai * 0.1);
-export async function personalizeRecommendations(p: Profile, request: QwenRequest = requestQwen) {
+export async function personalizeRecommendations(p: Profile, request: GroqRequest = requestGroq) {
   const degreeRecommendations = rankTopDegrees(p, degrees.length);
   const careers = careerCandidates(p);
   const kind = p.journey === 'career' ? 'careers' as const : 'degrees' as const;
@@ -59,7 +59,7 @@ export async function personalizeRecommendations(p: Profile, request: QwenReques
     exactIds(result.recommendations.map(r => r.id), candidates.map(c => c.id));
     const byId = new Map(result.recommendations.map(r => [r.id, r]));
     if (career) {
-      return { ...fallback, source: 'qwen' as const, fallbackUsed: false, careers: careers.map(r => {
+      return { ...fallback, source: 'groq' as const, fallbackUsed: false, careers: careers.map(r => {
         const ai = byId.get(r.id)!;
         return { ...r, score: blend(r.score, ai.score), explanation: ai.explanation, nextAction: ai.nextAction };
       }).sort((a, b) => b.score - a.score).map((r, i) => ({ ...r, rank: i + 1 })) };
@@ -70,7 +70,7 @@ export async function personalizeRecommendations(p: Profile, request: QwenReques
     }).sort((a, b) => b.score - a.score).map((r, i) => ({ ...r, rank: i + 1 }));
     // Legacy recommendations keep their original unnormalized score contract.
     const order = new Map(ranked.map((r, i) => [r.degree.id, i]));
-    return { ...fallback, source: 'qwen' as const, fallbackUsed: false, degreeRecommendations: ranked,
+    return { ...fallback, source: 'groq' as const, fallbackUsed: false, degreeRecommendations: ranked,
       recommendations: fallback.recommendations.map(r => ({ ...r, reasons: ranked.find(d => d.degree.id === r.id)?.reasons ?? r.reasons }))
         .sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999)),
     };
@@ -78,7 +78,7 @@ export async function personalizeRecommendations(p: Profile, request: QwenReques
 }
 export type RecommendationResult = Awaited<ReturnType<typeof personalizeRecommendations>>;
 
-export async function personalizePlan(goal: string, skills: string[], hours: number, profile?: Profile, request: QwenRequest = requestQwen) {
+export async function personalizePlan(goal: string, skills: string[], hours: number, profile?: Profile, request: GroqRequest = requestGroq) {
   const baseline = createPlan(goal, skills, hours);
   const fallback = { ...baseline, source: 'deterministic' as const, fallbackUsed: true };
   // Legacy arbitrary skills still work through the original deterministic generator.
@@ -98,6 +98,6 @@ export async function personalizePlan(goal: string, skills: string[], hours: num
         ...(resource ? { resourceId: resource.id, structuredLearning: { title: resource.title, url: resource.url, provider: resource.provider, level: 'Catalogue resource', cost: resource.access } } : {}),
       };
     });
-    return { ...baseline, milestones, source: 'qwen' as const, fallbackUsed: false };
+    return { ...baseline, milestones, source: 'groq' as const, fallbackUsed: false };
   } catch (error) { logFallback(error); return fallback; }
 }

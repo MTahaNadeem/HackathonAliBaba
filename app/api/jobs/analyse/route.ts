@@ -1,6 +1,6 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { jobSchema } from '@/lib/validation';
-import { callGemini } from '@/lib/ai';
+import { callGroq } from '@/lib/ai';
 import { analyseJob } from '@/lib/domain';
 import { roles } from '@/lib/catalogue';
 import * as cheerio from 'cheerio';
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       };
     };
 
-    // Attempt Gemini AI analysis if configured
+    // Attempt Groq AI analysis if configured
     try {
       const profileContext = profile ? `User Profile:
 - Skills: ${profile.skills.join(', ')}
@@ -114,7 +114,7 @@ Be realistic. If the user doesn't have evidence, put it in Learn Next or Improve
         required: ["title", "company", "gaps", "formal", "method"]
       };
 
-      const data = await callGemini(systemPrompt, `Job Description:\n${jobText}\n\n${profileContext}`, schema);
+      const data = await callGroq(systemPrompt, `Job Description:\n${jobText}\n\n${profileContext}`, schema);
       if (data && typeof data === 'object' && Array.isArray((data as any).gaps) && (data as any).gaps.length > 0) {
         return Response.json(data);
       }
@@ -122,7 +122,7 @@ Be realistic. If the user doesn't have evidence, put it in Learn Next or Improve
       console.warn('AI returned empty or unexpected structure; using deterministic fallback.');
       return Response.json(getDeterministicFallback());
     } catch (aiErr) {
-      console.warn('Gemini analysis unavailable or failed, falling back to deterministic matching:', aiErr);
+      console.warn('Groq analysis unavailable or failed, falling back to deterministic matching:', aiErr);
       return Response.json(getDeterministicFallback());
     }
   } catch (e) {
