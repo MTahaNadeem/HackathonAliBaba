@@ -148,28 +148,48 @@
         </div>
       </div>
 
-      <!-- Skills you have -->
+      <!-- Profile Context Banner (shown when logged in) -->
+      <div id="profileContextBanner" class="profile-context-banner" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span id="profileContextText">Comparing with your CourseCompass profile &amp; completed milestones</span>
+      </div>
+
+      <!-- Skills you have / What you've done till now -->
       <div class="skills-section" id="sectionHave">
         <div class="section-header">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          <span>You already have</span>
+          <span id="sectionHaveTitle">What you have done till now</span>
         </div>
         <div class="skill-chips" id="chipsHave"></div>
       </div>
 
-      <!-- Skills to learn -->
+      <!-- Skills to learn (Interactive Selection) -->
       <div class="skills-section" id="sectionLearn">
         <div class="section-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.5">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <span>You may need to learn</span>
+          <span>Skills needed for this role</span>
+        </div>
+        <div class="selection-toolbar">
+          <span style="color:#64748b;">Select skills to include in your plan:</span>
+          <div class="selection-toolbar-actions">
+            <button type="button" class="btn-link-action" id="btnSelectAllSkills">Select All</button>
+            <span style="color:#cbd5e1;">·</span>
+            <button type="button" class="btn-link-action" id="btnClearAllSkills">Clear</button>
+          </div>
         </div>
         <div class="skill-chips" id="chipsLearn"></div>
+        <div class="plan-add-skill-row">
+          <input type="text" id="inputCustomSkill" class="plan-add-skill-input" placeholder="Add custom skill to plan… e.g. Docker" />
+          <button type="button" class="btn-plan-add" id="btnAddCustomSkill">+ Add</button>
+        </div>
       </div>
 
       <!-- Next action -->
@@ -239,9 +259,98 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
-      My Skills
+      My Profile &amp; Skills
     </div>
-    <p class="profile-sub">These skills are compared against detected job requirements.</p>
+
+    <!-- Login section (shown when NOT logged in) -->
+    <div id="loginSection">
+      <div class="login-card">
+        <p class="login-desc">Sign in with your CourseCompass account to sync your profile, track learned skills, and get personalized analysis.</p>
+        <div class="login-form">
+          <input type="email" id="loginEmail" class="login-input" placeholder="Email address" autocomplete="email" />
+          <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password" />
+          <button class="btn-primary full-width" id="btnLogin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Sign In
+          </button>
+          <div class="login-error" id="loginError" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="login-divider"><span>or continue as guest</span></div>
+    </div>
+
+    <!-- Logged-in user card (shown when logged in) -->
+    <div id="loggedInSection" style="display:none;">
+      <div class="user-card">
+        <div class="user-card-header">
+          <div class="user-avatar" id="userAvatar">U</div>
+          <div class="user-info">
+            <span class="user-email" id="userEmail">user@example.com</span>
+            <span class="user-badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Connected
+            </span>
+          </div>
+          <button class="btn-ghost compact" id="btnLogout" title="Sign out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Plan Progress -->
+      <div id="planProgressSection" style="display:none;">
+        <div class="progress-card">
+          <div class="progress-header">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span id="planTitle">Your Learning Plan</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="planProgressBar" style="width:0%"></div>
+          </div>
+          <span class="progress-label" id="planProgressLabel">0 / 0 skills completed</span>
+        </div>
+      </div>
+
+      <!-- Learned Skills -->
+      <div id="learnedSkillsSection" style="display:none;">
+        <div class="section-header green-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>What you have done till now (Demonstrated)</span>
+        </div>
+        <div class="skill-chips" id="learnedSkillChips"></div>
+      </div>
+
+      <!-- In Progress Skills -->
+      <div id="inProgressSkillsSection" style="display:none;">
+        <div class="section-header amber-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span>Currently learning</span>
+        </div>
+        <div class="skill-chips" id="inProgressSkillChips"></div>
+      </div>
+    </div>
+
+    <p class="profile-sub" id="skillsSubtext">These skills are compared against detected job requirements.</p>
+
+    <button class="btn-secondary full-width" id="btnSyncSkills" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+      </svg>
+      Sync Skills from CourseCompass (CV &amp; Profile)
+    </button>
+    <div class="save-confirmation" id="syncConfirmation" style="margin-bottom: 10px;">Synced from CourseCompass ✓</div>
 
     <div class="skill-chips editable" id="profileSkillChips"></div>
 

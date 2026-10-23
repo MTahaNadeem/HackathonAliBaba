@@ -101,8 +101,8 @@ Output in strict JSON format.`;
       }
       throw new Error('Invalid AI response structure');
     } catch (aiErr) {
-      console.warn('Gemini plan generation unavailable or failed; using deterministic fallback plan:', aiErr);
-      const fallbackPlan = createPlan(goal, skills, 5);
+      console.warn('AI plan generation failed or timed out, using enriched deterministic generator:', aiErr);
+      const fallbackPlan = createPlan(goal, skills, 10);
       return Response.json(fallbackPlan);
     }
   } catch (e) {

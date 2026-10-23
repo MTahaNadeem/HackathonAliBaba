@@ -72,6 +72,7 @@ function heuristicExtract(text: string) {
   };
 }
 
+
 export async function POST(req: Request) {
   try {
     sameOrigin(req);

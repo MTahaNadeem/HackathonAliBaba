@@ -13,7 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import {degrees, type Degree} from '@/lib/catalogue';
-import {recommend, type Profile} from '@/lib/domain';
+import {recommend, rankTopDegrees, type Profile} from '@/lib/domain';
 import {Dialog, DialogContent, DialogTitle, DialogDescription} from '@/components/ui/dialog';
 import {CheckField, Empty} from './fields';
 
@@ -31,6 +31,31 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
   const [detail, setDetail] = useState<Degree | null>(null);
   const [compare, setCompare] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
+
+  const rankedRecs = rankTopDegrees(profile, 33);
+  const scoreMap = new Map(rankedRecs.map(r => [r.degree.id, r.score]));
+
+  const getScore = (d: Degree) => {
+    if (scoreMap.has(d.id)) return scoreMap.get(d.id)!;
+    const userSubjects = Array.isArray(profile.subjects) ? profile.subjects : [];
+    const userInterests = Array.isArray(profile.interests) ? profile.interests : [];
+    const userSkills = Array.isArray(profile.skills) ? profile.skills : [];
+    const subjectMatches = d.subjects.filter(s =>
+      userSubjects.some(us => us.toLowerCase() === s.toLowerCase())
+    );
+    const interestMatches = d.interests.filter(i =>
+      userInterests.some(ui => ui.toLowerCase() === i.toLowerCase())
+    );
+    const skillMatches = d.skills.filter(sk =>
+      userSkills.some(usk => usk.toLowerCase() === sk.toLowerCase())
+    );
+    const maxPossible = d.subjects.length * 3 + d.interests.length * 2;
+    const rawScore = subjectMatches.length * 3 + interestMatches.length * 2 + Math.min(skillMatches.length, 2);
+    if (rawScore > 0 && maxPossible > 0) {
+      return Math.min(98, Math.max(30, Math.round((rawScore / maxPossible) * 100)));
+    }
+    return 50;
+  };
 
   const list = recommend(profile)
     .filter(
@@ -242,21 +267,41 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
       )}
 
       <div className="degree-grid">
-        {list.map(d => (
-          <article className="degree-card" key={d.id}>
-            <div className={`degree-banner ${d.color}`}>
-              <span>{d.field}</span>
-              <Compass size={34} />
-              <span className="degree-monogram">
-                {d.name
-                  .split(' ')
-                  .map(s => s[0])
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase()}
-              </span>
-            </div>
-            <div className="degree-body">
+        {list.map((d, index) => {
+          const score = getScore(d);
+          const showPercentage = index < 5;
+
+          return (
+            <article className="degree-card" key={d.id}>
+              <div className={`degree-banner ${d.color}`}>
+                <span>{d.field}</span>
+                {showPercentage && (
+                  <span
+                    className={`degree-score-pill ${score >= 70 ? 'high' : ''}`}
+                    style={{
+                      position: 'relative',
+                      zIndex: 2,
+                      fontSize: '11.5px',
+                      padding: '3px 9px',
+                      borderRadius: '12px',
+                      background: 'rgba(255, 255, 255, 0.92)',
+                      boxShadow: '0 2px 6px rgba(20, 45, 82, 0.08)',
+                    }}
+                  >
+                    {score}% Match
+                  </span>
+                )}
+                <Compass size={34} />
+                <span className="degree-monogram">
+                  {d.name
+                    .split(' ')
+                    .map(s => s[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
+                </span>
+              </div>
+              <div className="degree-body">
               <h2>{d.name}</h2>
               <p className="degree-tagline">{d.tagline}</p>
               <div className="tags">
@@ -286,7 +331,8 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
               </div>
             </div>
           </article>
-        ))}
+        );
+      })}
       </div>
 
       {!list.length && (

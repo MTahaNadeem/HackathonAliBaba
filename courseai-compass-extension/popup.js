@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════
    popup.js – CourseAI Compass
    All popup logic: navigation, analysis, skill matching,
-   saved jobs, and profile management.
+   selectable skill roadmap, auth/profile sync, saved jobs.
 ════════════════════════════════════════════════════ */
 
 'use strict';
@@ -11,17 +11,14 @@
 ══════════════════════════════════════════════════ */
 
 /**
- * Change this URL to point to your deployed web app.
- * It is passed missing skills as query params when the user
- * clicks "Build Learning Plan".
- * e.g. http://localhost:3000/?skills=React,Docker&source=extension
+ * URL pointing to the CourseCompass web app.
+ * Missing or selected skills are passed as query parameters.
  */
 const COMPASS_WEB_APP_URL = 'http://localhost:3000/';
 
 /* ══════════════════════════════════════════════════
    SKILL DICTIONARY
-   Comprehensive list of software / AI / tech skills.
-   Matching is case-insensitive.
+   Comprehensive catalog of software / tech / AI skills.
 ══════════════════════════════════════════════════ */
 const SKILL_DICTIONARY = [
   // Web frontend
@@ -49,7 +46,7 @@ const SKILL_DICTIONARY = [
   'Computer Vision', 'NLP', 'Data Science', 'Data Analysis',
   // Testing / Quality
   'Jest', 'Pytest', 'Selenium', 'Cypress', 'Unit Testing',
-  // Misc — note: Linux already in DevOps above, no duplicate
+  // Architecture & Engineering Practices
   'Figma', 'Agile', 'Scrum', 'Jira', 'Microservices',
   'Object-Oriented Programming', 'OOP', 'Design Patterns', 'Algorithms',
 ];
@@ -63,7 +60,10 @@ const DEFAULT_STUDENT_SKILLS = [
 /* ══════════════════════════════════════════════════
    STATE
 ══════════════════════════════════════════════════ */
-let currentAnalysis = null;  // holds the last analysis result
+let currentAnalysis = null;           // Holds the last analysis result
+let userSession = null;               // Holds logged-in user session { access_token, email, userId }
+let userProfileData = null;           // Holds profile data from server { email, profile, plan, skills, learnedSkills, inProgressSkills }
+let selectedSkillsToLearn = new Set(); // Skills selected by user to include in their generated learning plan
 
 /* ══════════════════════════════════════════════════
    DOM REFERENCES
@@ -81,53 +81,85 @@ const viewSaved   = $('viewSaved');
 const viewProfile = $('viewProfile');
 
 // Context card
-const contextSkeleton = $('contextSkeleton');
-const contextInfo     = $('contextInfo');
-const pageTitle       = $('pageTitle');
+const contextSkeleton  = $('contextSkeleton');
+const contextInfo      = $('contextInfo');
+const pageTitle        = $('pageTitle');
 const detectedCompany  = $('detectedCompany');
 const detectedJobTitle = $('detectedJobTitle');
 const rowCompany       = $('rowCompany');
 const rowJobTitle      = $('rowJobTitle');
 
 // States
-const initialState  = $('initialState');
-const loadingState  = $('loadingState');
-const errorState    = $('errorState');
-const resultsState  = $('resultsState');
+const initialState = $('initialState');
+const loadingState = $('loadingState');
+const errorState   = $('errorState');
+const resultsState = $('resultsState');
 
-// Buttons
-const btnAnalyze    = $('btnAnalyze');
-const btnRetry      = $('btnRetry');
-const btnReAnalyze  = $('btnReAnalyze');
-const btnBuildPlan  = $('btnBuildPlan');
-const btnSaveJob    = $('btnSaveJob');
+// Buttons & Actions
+const btnAnalyze   = $('btnAnalyze');
+const btnRetry     = $('btnRetry');
+const btnReAnalyze = $('btnReAnalyze');
+const btnBuildPlan = $('btnBuildPlan');
+const btnSaveJob   = $('btnSaveJob');
 
-// Results
-const ringFill      = $('ringFill');
-const scoreNumber   = $('scoreNumber');
-const scoreCategory = $('scoreCategory');
-const statTotal     = $('statTotal');
-const statMatched   = $('statMatched');
-const statMissing   = $('statMissing');
-const chipsHave     = $('chipsHave');
-const chipsLearn    = $('chipsLearn');
-const sectionHave   = $('sectionHave');
-const sectionLearn  = $('sectionLearn');
-const nextActionText = $('nextActionText');
-const nextActionCard = $('nextActionCard');
-const errorTitle    = $('errorTitle');
-const errorMsg      = $('errorMsg');
+// Results elements
+const ringFill             = $('ringFill');
+const scoreNumber          = $('scoreNumber');
+const scoreCategory        = $('scoreCategory');
+const statTotal            = $('statTotal');
+const statMatched          = $('statMatched');
+const statMissing          = $('statMissing');
+const chipsHave            = $('chipsHave');
+const chipsLearn           = $('chipsLearn');
+const sectionHave          = $('sectionHave');
+const sectionHaveTitle     = $('sectionHaveTitle');
+const sectionLearn         = $('sectionLearn');
+const nextActionText       = $('nextActionText');
+const nextActionCard       = $('nextActionCard');
+const errorTitle           = $('errorTitle');
+const errorMsg             = $('errorMsg');
+const profileContextBanner = $('profileContextBanner');
+const profileContextText   = $('profileContextText');
+
+// Interactive selection toolbar & inputs
+const btnSelectAllSkills   = $('btnSelectAllSkills');
+const btnClearAllSkills    = $('btnClearAllSkills');
+const inputCustomSkill     = $('inputCustomSkill');
+const btnAddCustomSkill    = $('btnAddCustomSkill');
 
 // Saved jobs
 const savedJobsList = $('savedJobsList');
 const savedEmpty    = $('savedEmpty');
 
-// Profile
+// Profile & Skills Management
 const profileSkillChips = $('profileSkillChips');
-const newSkillInput      = $('newSkillInput');
-const btnAddSkill        = $('btnAddSkill');
-const btnSaveSkills      = $('btnSaveSkills');
-const saveConfirmation   = $('saveConfirmation');
+const newSkillInput     = $('newSkillInput');
+const btnAddSkill       = $('btnAddSkill');
+const btnSaveSkills     = $('btnSaveSkills');
+const saveConfirmation  = $('saveConfirmation');
+const btnSyncSkills     = $('btnSyncSkills');
+const syncConfirmation  = $('syncConfirmation');
+
+// Login / Auth elements
+const loginSection    = $('loginSection');
+const loggedInSection = $('loggedInSection');
+const loginEmail      = $('loginEmail');
+const loginPassword   = $('loginPassword');
+const btnLogin        = $('btnLogin');
+const loginError      = $('loginError');
+const userAvatar      = $('userAvatar');
+const userEmail       = $('userEmail');
+const btnLogout       = $('btnLogout');
+
+// Profile progress elements
+const planProgressSection     = $('planProgressSection');
+const planTitle               = $('planTitle');
+const planProgressBar         = $('planProgressBar');
+const planProgressLabel       = $('planProgressLabel');
+const learnedSkillsSection    = $('learnedSkillsSection');
+const learnedSkillChips       = $('learnedSkillChips');
+const inProgressSkillsSection = $('inProgressSkillsSection');
+const inProgressSkillChips    = $('inProgressSkillChips');
 
 /* ══════════════════════════════════════════════════
    NAVIGATION
@@ -147,14 +179,19 @@ navSaved.addEventListener('click', () => {
 navProfile.addEventListener('click', () => {
   setView(viewProfile, navProfile);
   renderProfileSkills();
+  renderAuthState();
 });
 
 /* ══════════════════════════════════════════════════
-   INITIALISE POPUP
+   INITIALIZE POPUP
 ══════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCurrentTabContext();
   await ensureDefaultSkills();
+  await restoreSession();
+  try {
+    await syncSkillsFromCourseCompass();
+  } catch {}
 });
 
 /** Load the current tab metadata and show in context card */
@@ -165,14 +202,13 @@ async function loadCurrentTabContext() {
 
     const url = tab.url || '';
 
-    // chrome:// pages cannot be scripted — detect early
+    // Internal browser pages cannot be scripted
     if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') ||
         url.startsWith('edge://') || url.startsWith('about:')) {
       showContextFallback('Browser internal page');
       return;
     }
 
-    // Show what we can from the tab object immediately
     contextSkeleton.style.display = 'none';
     contextInfo.style.display = 'block';
     pageTitle.textContent = truncate(tab.title || url, 60);
@@ -186,6 +222,180 @@ function showContextFallback(msg) {
   contextSkeleton.style.display = 'none';
   contextInfo.style.display = 'block';
   pageTitle.textContent = msg || 'Open a job listing to begin';
+}
+
+/* ══════════════════════════════════════════════════
+   AUTH / LOGIN FLOW
+══════════════════════════════════════════════════ */
+
+/** Restore session from chrome.storage on popup open */
+async function restoreSession() {
+  try {
+    const { compassSession } = await chrome.storage.local.get('compassSession');
+    if (compassSession && compassSession.access_token) {
+      userSession = compassSession;
+      await fetchProfileFromServer();
+      renderAuthState();
+    }
+  } catch {}
+}
+
+/** Render auth UI state based on whether user is logged in */
+function renderAuthState() {
+  if (userSession) {
+    loginSection.style.display = 'none';
+    loggedInSection.style.display = 'block';
+    userEmail.textContent = userSession.email || 'Signed in';
+    userAvatar.textContent = (userSession.email || 'U')[0].toUpperCase();
+    renderProfileProgress();
+  } else {
+    loginSection.style.display = 'block';
+    loggedInSection.style.display = 'none';
+    planProgressSection.style.display = 'none';
+    learnedSkillsSection.style.display = 'none';
+    inProgressSkillsSection.style.display = 'none';
+  }
+}
+
+/** Handle login button click */
+if (btnLogin) {
+  btnLogin.addEventListener('click', async () => {
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+    if (!email || !password) {
+      showLoginError('Please enter email and password.');
+      return;
+    }
+    btnLogin.disabled = true;
+    btnLogin.textContent = 'Signing in…';
+    loginError.style.display = 'none';
+
+    try {
+      const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
+      const res = await fetch(`${base}/api/extension/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed.');
+
+      userSession = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        email: data.user?.email || email,
+        userId: data.user?.id,
+      };
+      await chrome.storage.local.set({ compassSession: userSession });
+
+      // Fetch profile data after login
+      await fetchProfileFromServer();
+
+      // Merge server skills with local extension skills
+      if (userProfileData && userProfileData.skills && userProfileData.skills.length > 0) {
+        const current = await getStudentSkills();
+        const merged = Array.from(new Set([...current, ...userProfileData.skills]));
+        await chrome.storage.local.set({ studentSkills: merged });
+      }
+
+      renderAuthState();
+      renderProfileSkills();
+
+    } catch (e) {
+      showLoginError(e.message || 'Could not sign in. Check credentials.');
+    } finally {
+      btnLogin.disabled = false;
+      btnLogin.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Sign In
+      `;
+    }
+  });
+}
+
+/** Allow pressing Enter in password field to submit */
+if (loginPassword) {
+  loginPassword.addEventListener('keydown', e => {
+    if (e.key === 'Enter') btnLogin.click();
+  });
+}
+
+/** Handle logout */
+if (btnLogout) {
+  btnLogout.addEventListener('click', async () => {
+    userSession = null;
+    userProfileData = null;
+    await chrome.storage.local.remove('compassSession');
+    renderAuthState();
+    renderProfileSkills();
+  });
+}
+
+function showLoginError(msg) {
+  loginError.textContent = msg;
+  loginError.style.display = 'block';
+}
+
+/** Fetch user profile + plan from the CourseCompass API */
+async function fetchProfileFromServer() {
+  if (!userSession || !userSession.access_token) return;
+  try {
+    const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/extension/profile`, {
+      headers: { 'Authorization': `Bearer ${userSession.access_token}` },
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        // Token expired — clear session
+        userSession = null;
+        userProfileData = null;
+        await chrome.storage.local.remove('compassSession');
+      }
+      return;
+    }
+    userProfileData = await res.json();
+  } catch {}
+}
+
+/** Render plan progress + what the user has done till now */
+function renderProfileProgress() {
+  if (!userProfileData) return;
+
+  // Plan progress card
+  if (userProfileData.plan) {
+    const p = userProfileData.plan;
+    planProgressSection.style.display = 'block';
+    planTitle.textContent = p.title || 'Your Learning Plan';
+    const pct = p.totalMilestones > 0 ? Math.round((p.completedMilestones / p.totalMilestones) * 100) : 0;
+    planProgressBar.style.width = `${pct}%`;
+    planProgressLabel.textContent = `${p.completedMilestones} / ${p.totalMilestones} skills completed (${pct}%)`;
+  } else {
+    planProgressSection.style.display = 'none';
+  }
+
+  // Learned skills ("What you have done till now")
+  if (userProfileData.learnedSkills && userProfileData.learnedSkills.length > 0) {
+    learnedSkillsSection.style.display = 'block';
+    learnedSkillChips.innerHTML = '';
+    userProfileData.learnedSkills.forEach(skill => {
+      learnedSkillChips.appendChild(createChip(skill, 'have', '✓'));
+    });
+  } else {
+    learnedSkillsSection.style.display = 'none';
+  }
+
+  // In progress skills
+  if (userProfileData.inProgressSkills && userProfileData.inProgressSkills.length > 0) {
+    inProgressSkillsSection.style.display = 'block';
+    inProgressSkillChips.innerHTML = '';
+    userProfileData.inProgressSkills.forEach(skill => {
+      inProgressSkillChips.appendChild(createChip(skill, 'learn', '◉'));
+    });
+  } else {
+    inProgressSkillsSection.style.display = 'none';
+  }
 }
 
 /* ══════════════════════════════════════════════════
@@ -206,81 +416,69 @@ async function runAnalysis() {
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) throw new Error('no-tab');
+    if (!tab) throw new Error('No active tab found.');
 
     const url = tab.url || '';
-
-    // Guard: cannot script chrome:// or extension pages
     if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') ||
         url.startsWith('edge://') || url.startsWith('about:')) {
-      showError(
-        'Cannot analyze browser pages',
-        'CourseAI Compass only works on regular websites. Navigate to a job listing and try again.'
-      );
-      return;
+      throw new Error('CourseAI Compass cannot run on browser internal pages. Navigate to any job listing and try again.');
     }
 
-    // Send message to content script already injected by manifest
-    let response;
+    // Attempt sending message to content script
+    let data;
     try {
-      response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_JOB_DATA' });
-    } catch {
-      // Content script might not be active yet — inject it programmatically
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content.js'],
-        });
-        response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_JOB_DATA' });
-      } catch (injErr) {
-        throw new Error('inject-failed');
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_JOB_DATA' });
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Empty response from page content script');
       }
+      data = response.data;
+    } catch {
+      // If content script was not already present, inject it on the fly
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files:  ['content.js'],
+      });
+      await new Promise(r => setTimeout(r, 200));
+
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'EXTRACT_JOB_DATA' });
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Could not read page content.');
+      }
+      data = response.data;
     }
 
-    if (!response || !response.success) {
-      throw new Error('extraction-failed');
+    // Refresh user profile before analysis if logged in
+    if (userSession && userSession.access_token) {
+      await fetchProfileFromServer();
     }
 
-    const { data } = response;
-
-    // Update context card with extracted data
-    updateContextCard(data);
-
-    // Run skill matching — analyzeSkills is async (reads storage), must await
+    // Perform skill matching
     const analysis = await analyzeSkills(data);
     currentAnalysis = { ...analysis, ...data };
 
-    // If no skills detected show a friendly message instead of empty results
-    if (analysis.detectedSkills.length === 0) {
-      showError(
-        'Not enough job information detected',
-        'CourseAI Compass couldn\'t identify enough structured skill information on this page. Try opening the full job description.'
-      );
-      return;
-    }
+    // Update context card with detected job details
+    updateContextCard(data);
 
+    // Render results
     await renderResults(analysis, data);
     setState('results');
 
   } catch (err) {
-    const msgs = {
-      'no-tab':           ['Couldn\'t access the tab', 'Please try reopening the extension.'],
-      'inject-failed':    ['Permission error', 'CourseAI Compass doesn\'t have access to this page. Try a different page.'],
-      'extraction-failed':['Page read failed', 'Couldn\'t read this page\'s content. Try refreshing and reopening the extension.'],
-    };
-    const [t, m] = msgs[err.message] || ['Something went wrong', 'CourseAI Compass encountered an unexpected error. Please try again.'];
-    showError(t, m);
+    showError(
+      'Could not analyze this page',
+      err.message || 'Make sure you are on a readable web page with text content.'
+    );
   }
 }
 
 function updateContextCard(data) {
   if (data.company) {
-    detectedCompany.textContent = truncate(data.company, 50);
-    rowCompany.style.display = 'flex';
+    rowCompany.style.display    = 'flex';
+    detectedCompany.textContent = truncate(data.company, 30);
   }
   if (data.jobTitle) {
-    detectedJobTitle.textContent = truncate(data.jobTitle, 60);
-    rowJobTitle.style.display = 'flex';
+    rowJobTitle.style.display    = 'flex';
+    detectedJobTitle.textContent = truncate(data.jobTitle, 35);
   }
   if (data.title) {
     pageTitle.textContent = truncate(data.title, 60);
@@ -288,27 +486,86 @@ function updateContextCard(data) {
 }
 
 /* ══════════════════════════════════════════════════
-   SKILL EXTRACTION & MATCHING
+   SKILL EXTRACTION & STRICT MATCHING
 ══════════════════════════════════════════════════ */
 
-/**
- * Find which skills from the dictionary appear in the job text.
- * Matching is case-insensitive, whole-word aware.
- */
+// Strict matching rules to eliminate false positives like 'R', 'Go', etc.
+const SKILL_MATCHERS = {
+  // R programming language: STRICT matching.
+  // NEVER match lowercase 'r', never match (R), (r), ®, R&D, R&R, Roles & Responsibilities, or single letter bullet 'r.'
+  'R': (text) => {
+    // 1. Explicit R programming / language references
+    if (/\b(?:R\s+(?:programming|language|script|package|packages|code|studio)|(?:programming|language)\s+in\s+R|RStudio|CRAN|ggplot2|tidyverse|dplyr)\b/i.test(text)) {
+      return true;
+    }
+    // 2. Listed directly with other data / programming languages (e.g. "Python, R, SQL" or "Python / R" or "R, Python")
+    if (/\b(?:Python|SQL|Julia|SAS|SPSS|MATLAB|Scala)[,\s/]+R\b|\bR[,\s/]+(?:Python|SQL|Julia|SAS|SPSS|MATLAB|Scala)\b/.test(text)) {
+      return true;
+    }
+    return false;
+  },
+
+  // Go (Golang): NEVER match common English verb 'go'
+  'Go': (text) => {
+    if (/\b(?:Golang|Go\s+(?:language|programming|developer|engineer|backend|code))\b/i.test(text)) {
+      return true;
+    }
+    if (/\b(?:Docker|Kubernetes|Python|Rust|Java|C\+\+)[,\s/]+Go\b|\bGo[,\s/]+(?:Docker|Kubernetes|Python|Rust|Java|C\+\+)\b/.test(text)) {
+      return true;
+    }
+    return false;
+  },
+
+  // React & synonyms
+  'React': (text) => /\b(?:React(?:\.js|js)?)\b/i.test(text),
+
+  // Node.js & synonyms
+  'Node.js': (text) => /\b(?:Node(?:\.js|js)?)\b/i.test(text),
+
+  // Next.js & synonyms
+  'Next.js': (text) => /\b(?:Next(?:\.js|js)?)\b/i.test(text),
+
+  // Vue.js & synonyms
+  'Vue.js': (text) => /\b(?:Vue(?:\.js|js)?)\b/i.test(text),
+
+  // Tailwind CSS
+  'Tailwind CSS': (text) => /\b(?:Tailwind(?:\s*CSS)?)\b/i.test(text),
+
+  // Kubernetes
+  'Kubernetes': (text) => /\b(?:Kubernetes|K8s)\b/i.test(text),
+
+  // PostgreSQL
+  'PostgreSQL': (text) => /\b(?:PostgreSQL|Postgres)\b/i.test(text),
+
+  // REST APIs
+  'REST APIs': (text) => /\b(?:REST(?:\s*APIs?|ful\s*APIs?|ful)?)\b/i.test(text),
+
+  // CI/CD
+  'CI/CD': (text) => /\b(?:CI\s*\/\s*CD|CICD)\b/i.test(text),
+
+  // C#
+  'C#': (text) => /(?:^|[^a-zA-Z0-9])C#(?=$|[^a-zA-Z0-9])|\bC-Sharp\b/i.test(text),
+
+  // C++
+  'C++': (text) => /(?:^|[^a-zA-Z0-9])C\+\+(?=$|[^a-zA-Z0-9])/i.test(text),
+};
+
 function extractSkillsFromText(text) {
+  if (!text) return [];
   const found = new Set();
 
   for (const skill of SKILL_DICTIONARY) {
-    // Escape all regex special characters in the skill name.
-    // Using a correctly-formed character class: no bare [ inside [].
-    const escaped = skill.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&');
+    const customMatcher = SKILL_MATCHERS[skill];
+    if (customMatcher) {
+      if (customMatcher(text)) {
+        found.add(skill);
+      }
+      continue;
+    }
 
-    // Match the skill surrounded by non-word characters or at string boundaries.
-    // This handles: "React," "(React)" "React.js" won't match "React" inside "ReactDOM".
-    const pattern = new RegExp(
-      '(?:^|[\\s,;:.()/\\[\\]|\\-])' + escaped + '(?=$|[\\s,;:.()/\\[\\]|\\-])',
-      'i'
-    );
+    // Default alphanumeric skill matching with word boundaries
+    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp('(?:^|[^a-zA-Z0-9])' + escaped + '(?=[^a-zA-Z0-9]|$)', 'i');
     if (pattern.test(text)) {
       found.add(skill);
     }
@@ -318,29 +575,47 @@ function extractSkillsFromText(text) {
 }
 
 /**
- * Compare detected job skills with the student's stored skills.
- * Returns full analysis object.
+ * Compare detected job skills with the student's stored skills + profile data.
+ * Checks what the user has done till now vs what they need for this job.
  */
 async function analyzeSkills(data) {
-  const detectedSkills = extractSkillsFromText(data.bodyText + ' ' + data.title);
+  const detectedSkills = extractSkillsFromText((data.bodyText || '') + ' ' + (data.title || ''));
   const studentSkills  = await getStudentSkills();
 
-  const studentLower   = studentSkills.map(s => s.toLowerCase());
-  const matchedSkills  = detectedSkills.filter(s => studentLower.includes(s.toLowerCase()));
-  const missingSkills  = detectedSkills.filter(s => !studentLower.includes(s.toLowerCase()));
+  // Aggregate everything the user has done till now
+  const allUserDoneSkills = [...studentSkills];
+  const serverLearnedSkills = [];
+
+  if (userProfileData) {
+    if (Array.isArray(userProfileData.skills)) allUserDoneSkills.push(...userProfileData.skills);
+    if (Array.isArray(userProfileData.learnedSkills)) {
+      allUserDoneSkills.push(...userProfileData.learnedSkills);
+      serverLearnedSkills.push(...userProfileData.learnedSkills);
+    }
+    if (Array.isArray(userProfileData.inProgressSkills)) {
+      allUserDoneSkills.push(...userProfileData.inProgressSkills);
+    }
+  }
+
+  const doneLower = [...new Set(allUserDoneSkills)].map(s => s.toLowerCase());
+  const matchedSkills = detectedSkills.filter(s => doneLower.includes(s.toLowerCase()));
+  const missingSkills = detectedSkills.filter(s => !doneLower.includes(s.toLowerCase()));
 
   const matchPercent = detectedSkills.length > 0
     ? Math.round((matchedSkills.length / detectedSkills.length) * 100)
     : null;
 
-  return { detectedSkills, matchedSkills, missingSkills, matchPercent };
+  return {
+    detectedSkills,
+    matchedSkills,
+    missingSkills,
+    matchPercent,
+    serverLearnedSkills,
+  };
 }
 
-// Make analyzeSkills synchronous-compatible by awaiting in caller
-// The function IS async because of getStudentSkills.
-
 /* ══════════════════════════════════════════════════
-   RENDER RESULTS
+   RENDER RESULTS & INTERACTIVE SKILL SELECTION
 ══════════════════════════════════════════════════ */
 async function renderResults(analysis, data) {
   const { detectedSkills, matchedSkills, missingSkills, matchPercent } = analysis;
@@ -350,11 +625,8 @@ async function renderResults(analysis, data) {
   const pct = matchPercent ?? 0;
   const offset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
 
-  // Animate with a short delay to allow DOM paint
   requestAnimationFrame(() => {
     ringFill.style.strokeDashoffset = offset;
-
-    // Color by category
     ringFill.classList.remove('strong', 'good', 'some', 'low');
     if (pct >= 80)      ringFill.classList.add('strong');
     else if (pct >= 60) ringFill.classList.add('good');
@@ -379,78 +651,229 @@ async function renderResults(analysis, data) {
   statMatched.textContent = matchedSkills.length;
   statMissing.textContent = missingSkills.length;
 
-  // ── Skill chips – Have ──────────────────────────
+  // ── Profile context banner ──────────────────────
+  if (userSession && userSession.email) {
+    profileContextBanner.style.display = 'flex';
+    const doneCount = (userProfileData?.learnedSkills?.length || 0) + (userProfileData?.skills?.length || 0);
+    profileContextText.innerHTML = `Connected as <strong>${escapeHtml(userSession.email)}</strong> · Analyzed against your completed milestones &amp; profile (${doneCount} skills)`;
+  } else {
+    profileContextBanner.style.display = 'none';
+  }
+
+  // ── What you have done till now (Matched) ────────
   chipsHave.innerHTML = '';
   if (matchedSkills.length > 0) {
     sectionHave.style.display = 'block';
+    sectionHaveTitle.textContent = `What you have done till now (${matchedSkills.length})`;
     matchedSkills.forEach(skill => {
-      chipsHave.appendChild(createChip(skill, 'have', '✓'));
+      const isDemonstrated = userProfileData?.learnedSkills?.some(s => s.toLowerCase() === skill.toLowerCase());
+      const prefix = isDemonstrated ? '✓ [Learned]' : '✓';
+      const chip = createChip(skill, 'have', prefix);
+      chip.title = 'You already have this skill. Click to add to target plan if you want to brush up.';
+      chip.style.cursor = 'pointer';
+      chip.addEventListener('click', () => {
+        addSkillToSelectedPlan(skill);
+      });
+      chipsHave.appendChild(chip);
     });
   } else {
     sectionHave.style.display = 'none';
   }
 
-  // ── Skill chips – Learn ─────────────────────────
-  chipsLearn.innerHTML = '';
+  // ── Skills needed for this role (Interactive Selection) ──
+  // Initialize selection with the missing skills for this job
+  selectedSkillsToLearn.clear();
   if (missingSkills.length > 0) {
-    sectionLearn.style.display = 'block';
-    missingSkills.forEach(skill => {
-      chipsLearn.appendChild(createChip(skill, 'learn', '○'));
-    });
-  } else {
-    sectionLearn.style.display = 'none';
+    missingSkills.slice(0, 8).forEach(s => selectedSkillsToLearn.add(s));
+  } else if (detectedSkills.length > 0) {
+    // If no gaps detected, pre-select up to 3 detected skills for review
+    detectedSkills.slice(0, 3).forEach(s => selectedSkillsToLearn.add(s));
   }
 
-  // ── Next action ─────────────────────────────────
-  // Always show the card; copy top 3 missing skills to the Build Plan button
+  renderSelectableSkillChips(missingSkills, detectedSkills);
+
+  // ── Save job button dataset ─────────────────────
+  btnBuildPlan.dataset.jobTitle = (data && (data.jobTitle || data.title)) || (currentAnalysis && (currentAnalysis.jobTitle || currentAnalysis.title)) || '';
+  btnBuildPlan.dataset.company  = (data && data.company) || (currentAnalysis && currentAnalysis.company) || '';
+
   nextActionCard.style.display = 'block';
-  const top3Missing = missingSkills.slice(0, 3);
+  updateBuildPlanUI();
+}
 
-  if (top3Missing.length > 0) {
-    const skillList = top3Missing.join(', ');
-    nextActionText.textContent =
-      `Focus on ${skillList} before applying to similar roles.`;
-    btnBuildPlan.dataset.missingSkills = top3Missing.join(',');
+/** Render selectable chips in the "Skills needed" section */
+function renderSelectableSkillChips(missingSkills, detectedSkills) {
+  chipsLearn.innerHTML = '';
+
+  const displaySkills = missingSkills.length > 0 ? missingSkills : detectedSkills;
+
+  if (displaySkills.length === 0) {
+    sectionLearn.style.display = 'block';
+    const emptyNotice = document.createElement('p');
+    emptyNotice.style.fontSize = '12px';
+    emptyNotice.style.color = '#64748b';
+    emptyNotice.style.margin = '4px 0 8px';
+    emptyNotice.textContent = 'No specific technology skills detected automatically. You can add skills manually below:';
+    chipsLearn.appendChild(emptyNotice);
+    return;
+  }
+
+  sectionLearn.style.display = 'block';
+
+  displaySkills.forEach(skill => {
+    const isSelected = selectedSkillsToLearn.has(skill);
+    const chip = document.createElement('span');
+    chip.className = `chip-selectable ${isSelected ? 'selected' : 'unselected'}`;
+    chip.dataset.skill = skill;
+    chip.innerHTML = `${isSelected ? '✓' : '+'} ${escapeHtml(skill)}`;
+
+    chip.addEventListener('click', () => {
+      toggleSkillSelection(skill, chip);
+    });
+
+    chipsLearn.appendChild(chip);
+  });
+}
+
+/** Toggle selection of a skill for the learning plan */
+function toggleSkillSelection(skill, chipEl) {
+  if (selectedSkillsToLearn.has(skill)) {
+    selectedSkillsToLearn.delete(skill);
+    chipEl.className = 'chip-selectable unselected';
+    chipEl.innerHTML = `+ ${escapeHtml(skill)}`;
   } else {
-    // All skills matched — no gaps
-    nextActionText.textContent =
-      'Your skills align well with this role. Keep practising and building portfolio projects.';
-    btnBuildPlan.dataset.missingSkills = '';
+    selectedSkillsToLearn.add(skill);
+    chipEl.className = 'chip-selectable selected';
+    chipEl.innerHTML = `✓ ${escapeHtml(skill)}`;
+  }
+  updateBuildPlanUI();
+}
+
+/** Add a skill directly to selected plan and create chip if needed */
+function addSkillToSelectedPlan(skill) {
+  const clean = skill.trim();
+  if (!clean) return;
+
+  selectedSkillsToLearn.add(clean);
+
+  // Check if chip already exists in chipsLearn
+  let existingChip = null;
+  chipsLearn.querySelectorAll('.chip-selectable').forEach(el => {
+    if (el.dataset.skill && el.dataset.skill.toLowerCase() === clean.toLowerCase()) {
+      existingChip = el;
+    }
+  });
+
+  if (existingChip) {
+    existingChip.className = 'chip-selectable selected';
+    existingChip.innerHTML = `✓ ${escapeHtml(clean)}`;
+  } else {
+    const newChip = document.createElement('span');
+    newChip.className = 'chip-selectable selected';
+    newChip.dataset.skill = clean;
+    newChip.innerHTML = `✓ ${escapeHtml(clean)}`;
+    newChip.addEventListener('click', () => {
+      toggleSkillSelection(clean, newChip);
+    });
+    chipsLearn.appendChild(newChip);
+  }
+
+  updateBuildPlanUI();
+}
+
+/** Update the "Build Learning Plan" button text and next action card */
+function updateBuildPlanUI() {
+  const count = selectedSkillsToLearn.size;
+  const skillsArray = Array.from(selectedSkillsToLearn);
+
+  if (count > 0) {
+    btnBuildPlan.disabled = false;
+    btnBuildPlan.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Build Learning Plan (${count} skill${count === 1 ? '' : 's'})
+    `;
+
+    const preview = skillsArray.slice(0, 4).join(', ') + (count > 4 ? ` (+${count - 4} more)` : '');
+    nextActionText.textContent = `Roadmap will focus on: ${preview}. Click below to open CourseCompass and build your customized plan!`;
+  } else {
+    btnBuildPlan.disabled = true;
+    btnBuildPlan.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      Select skills above to build plan
+    `;
+    nextActionText.textContent = 'Please click at least one skill above (or add a custom skill) to generate your learning plan.';
   }
 }
 
-function createChip(text, type, prefix) {
-  const chip = document.createElement('span');
-  chip.className = `chip ${type}`;
-  chip.textContent = `${prefix} ${text}`;
-  return chip;
+// ── Select All / Clear All buttons ─────────────────
+if (btnSelectAllSkills) {
+  btnSelectAllSkills.addEventListener('click', () => {
+    chipsLearn.querySelectorAll('.chip-selectable').forEach(chip => {
+      const skill = chip.dataset.skill;
+      if (skill) {
+        selectedSkillsToLearn.add(skill);
+        chip.className = 'chip-selectable selected';
+        chip.innerHTML = `✓ ${escapeHtml(skill)}`;
+      }
+    });
+    updateBuildPlanUI();
+  });
 }
 
-/* ══════════════════════════════════════════════════
-   UI STATE MACHINE
-══════════════════════════════════════════════════ */
-function setState(state) {
-  initialState.style.display  = state === 'initial'  ? 'block'  : 'none';
-  loadingState.style.display  = state === 'loading'  ? 'block'  : 'none';
-  errorState.style.display    = state === 'error'    ? 'block'  : 'none';
-  resultsState.style.display  = state === 'results'  ? 'block'  : 'none';
+if (btnClearAllSkills) {
+  btnClearAllSkills.addEventListener('click', () => {
+    selectedSkillsToLearn.clear();
+    chipsLearn.querySelectorAll('.chip-selectable').forEach(chip => {
+      const skill = chip.dataset.skill;
+      if (skill) {
+        chip.className = 'chip-selectable unselected';
+        chip.innerHTML = `+ ${escapeHtml(skill)}`;
+      }
+    });
+    updateBuildPlanUI();
+  });
 }
 
-function showError(title, msg) {
-  errorTitle.textContent = title;
-  errorMsg.textContent   = msg;
-  setState('error');
+// ── Add custom skill to plan ───────────────────────
+if (btnAddCustomSkill && inputCustomSkill) {
+  const handleAddCustom = () => {
+    const val = inputCustomSkill.value.trim();
+    if (!val) return;
+    addSkillToSelectedPlan(val);
+    inputCustomSkill.value = '';
+  };
+
+  btnAddCustomSkill.addEventListener('click', handleAddCustom);
+  inputCustomSkill.addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAddCustom();
+  });
 }
 
 /* ══════════════════════════════════════════════════
    BUILD LEARNING PLAN BUTTON
+   Builds the plan using the EXACT skills chosen by the user.
 ══════════════════════════════════════════════════ */
 btnBuildPlan.addEventListener('click', () => {
-  const missing  = btnBuildPlan.dataset.missingSkills || '';
-  const params   = new URLSearchParams();
-  if (missing) params.set('skills', missing);
+  const chosenSkills = Array.from(selectedSkillsToLearn);
+  if (chosenSkills.length === 0) return;
+
+  const jobTitle = btnBuildPlan.dataset.jobTitle || '';
+  const company  = btnBuildPlan.dataset.company || '';
+
+  const params = new URLSearchParams();
+  params.set('skills', chosenSkills.join(','));
+  if (jobTitle) params.set('goal', jobTitle);
+  if (company)  params.set('company', company);
   params.set('source', 'extension');
-  // Strip trailing slash before appending query string to avoid double-slash
+
   const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
   const url  = `${base}?${params.toString()}`;
   chrome.tabs.create({ url });
@@ -468,19 +891,17 @@ btnSaveJob.addEventListener('click', async () => {
     pageUrl:       currentAnalysis.url      || '',
     matchScore:    currentAnalysis.matchPercent,
     matchedSkills: currentAnalysis.matchedSkills || [],
-    missingSkills: currentAnalysis.missingSkills || [],
+    missingSkills: Array.from(selectedSkillsToLearn).length > 0 ? Array.from(selectedSkillsToLearn) : (currentAnalysis.missingSkills || []),
     savedAt:       new Date().toISOString(),
   };
 
   const { savedJobs = [] } = await chrome.storage.local.get('savedJobs');
-  // Avoid exact duplicate URLs
   const alreadySaved = savedJobs.some(j => j.pageUrl === job.pageUrl);
   if (!alreadySaved) {
     savedJobs.unshift(job);
     await chrome.storage.local.set({ savedJobs });
   }
 
-  // Visual feedback
   btnSaveJob.textContent = '✓ Saved to My Path';
   btnSaveJob.disabled = true;
   setTimeout(() => {
@@ -543,13 +964,11 @@ async function renderSavedJobs() {
       </div>
     `;
 
-    // Click card → open job URL
     card.addEventListener('click', e => {
       if (e.target.closest('.saved-delete-btn')) return;
       if (job.pageUrl) chrome.tabs.create({ url: job.pageUrl });
     });
 
-    // Delete
     card.querySelector('.saved-delete-btn').addEventListener('click', async e => {
       e.stopPropagation();
       const { savedJobs: current = [] } = await chrome.storage.local.get('savedJobs');
@@ -566,7 +985,6 @@ async function renderSavedJobs() {
    PROFILE / SKILLS MANAGEMENT
 ══════════════════════════════════════════════════ */
 
-/** Ensure default skills are set on first install */
 async function ensureDefaultSkills() {
   const { studentSkills } = await chrome.storage.local.get('studentSkills');
   if (!studentSkills) {
@@ -579,7 +997,6 @@ async function getStudentSkills() {
   return studentSkills;
 }
 
-/** Render profile skill chips with remove buttons */
 async function renderProfileSkills() {
   const skills = await getStudentSkills();
   profileSkillChips.innerHTML = '';
@@ -601,13 +1018,11 @@ async function renderProfileSkills() {
   });
 }
 
-/** Add a new skill to the profile */
 btnAddSkill.addEventListener('click', async () => {
   const raw = newSkillInput.value.trim();
   if (!raw) return;
 
   const current = await getStudentSkills();
-  // Avoid duplicates
   if (current.some(s => s.toLowerCase() === raw.toLowerCase())) {
     newSkillInput.value = '';
     return;
@@ -619,12 +1034,10 @@ btnAddSkill.addEventListener('click', async () => {
   renderProfileSkills();
 });
 
-/** Allow pressing Enter in the skill input */
 newSkillInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') btnAddSkill.click();
 });
 
-/** Save skills with visual confirmation */
 btnSaveSkills.addEventListener('click', async () => {
   const skills = await getStudentSkills();
   await chrome.storage.local.set({ studentSkills: skills });
@@ -632,9 +1045,95 @@ btnSaveSkills.addEventListener('click', async () => {
   setTimeout(() => saveConfirmation.classList.remove('visible'), 2000);
 });
 
+/** Sync skills with CourseCompass account and open tabs */
+if (btnSyncSkills) {
+  btnSyncSkills.addEventListener('click', async () => {
+    btnSyncSkills.disabled = true;
+    btnSyncSkills.textContent = 'Syncing...';
+    try {
+      const synced = await syncSkillsFromCourseCompass();
+      if (synced && synced.length > 0) {
+        showSyncMessage(`Synced ${synced.length} skills from CourseCompass ✓`);
+        await renderProfileSkills();
+        renderAuthState();
+      } else {
+        showSyncMessage('No open CourseCompass tab found with skills. Please open CourseCompass first.');
+      }
+    } catch (e) {
+      showSyncMessage('Sync failed. Please open CourseCompass in your browser.');
+    } finally {
+      btnSyncSkills.disabled = false;
+      btnSyncSkills.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+        </svg>
+        Sync Skills from CourseCompass (CV & Profile)
+      `;
+    }
+  });
+}
+
+function showSyncMessage(msg) {
+  if (!syncConfirmation) return;
+  syncConfirmation.textContent = msg;
+  syncConfirmation.classList.add('visible');
+  setTimeout(() => syncConfirmation.classList.remove('visible'), 3000);
+}
+
+async function syncSkillsFromCourseCompass() {
+  // First try API-based sync if logged in
+  if (userSession && userSession.access_token) {
+    try {
+      await fetchProfileFromServer();
+      if (userProfileData && userProfileData.skills && userProfileData.skills.length > 0) {
+        const current = await getStudentSkills();
+        const merged = Array.from(new Set([...current, ...userProfileData.skills]));
+        await chrome.storage.local.set({ studentSkills: merged });
+        return merged;
+      }
+    } catch {}
+  }
+
+  // Fallback: read from open CourseCompass tab
+  const tabs = await chrome.tabs.query({});
+  const appTabs = tabs.filter(t => t.url && (t.url.includes('localhost:3000') || t.url.includes('coursecompass')));
+  for (const tab of appTabs) {
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'GET_COURSECOMPASS_SKILLS' });
+      if (response && response.success && Array.isArray(response.skills) && response.skills.length > 0) {
+        const current = await getStudentSkills();
+        const merged = Array.from(new Set([...current, ...response.skills]));
+        await chrome.storage.local.set({ studentSkills: merged });
+        return merged;
+      }
+    } catch {}
+  }
+  return null;
+}
+
 /* ══════════════════════════════════════════════════
-   UTILITY HELPERS
+   UI HELPERS & CHIPS
 ══════════════════════════════════════════════════ */
+
+function createChip(text, type, prefix) {
+  const chip = document.createElement('span');
+  chip.className = `chip ${type}`;
+  chip.textContent = `${prefix} ${text}`;
+  return chip;
+}
+
+function setState(state) {
+  initialState.style.display = state === 'initial' ? 'block' : 'none';
+  loadingState.style.display = state === 'loading' ? 'block' : 'none';
+  errorState.style.display   = state === 'error'   ? 'block' : 'none';
+  resultsState.style.display = state === 'results' ? 'block' : 'none';
+}
+
+function showError(title, msg) {
+  errorTitle.textContent = title;
+  errorMsg.textContent   = msg;
+  setState('error');
+}
 
 function truncate(str, max) {
   if (!str) return '';

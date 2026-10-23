@@ -29,7 +29,8 @@ import Learning from './learning';
 import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
-import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan} from '@/lib/domain';
+import StudentOnboarding from './student-onboarding';
+import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
@@ -69,6 +70,7 @@ export default function CourseCompassApp() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [adviser, setAdviser] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [studentOnboardingOpen, setStudentOnboardingOpen] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -127,6 +129,34 @@ export default function CourseCompassApp() {
     setMobile(false);
     window.location.hash = viewToHash(normalized);
   }, [session, syncing, profile]);
+
+  const currentJourney: Journey = profile.journey || 'student';
+
+  const switchJourney = useCallback((newJourney: Journey) => {
+    if (profile.journey === newJourney) return;
+    const updated: Profile = {
+      ...profile,
+      journey: newJourney,
+    };
+    setProfile(updated);
+
+    // Switch view to align with the journey
+    if (newJourney === 'career') {
+      if (view === 'universities' || view === 'explore' || view === 'dashboard') {
+        go('jobs');
+      }
+    } else {
+      if (view === 'jobs' || view === 'dashboard') {
+        go('universities');
+      }
+    }
+
+    if (sessionRef.current) {
+      persist('/api/profile', updated).catch(err => {
+        console.warn('Could not persist journey preference:', err);
+      });
+    }
+  }, [profile, view, go]);
 
   useEffect(() => {
     function handleHash() {
@@ -293,17 +323,34 @@ export default function CourseCompassApp() {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const skillsList = Array.from(new Set([
+      ...(profile.skills || []),
+      ...(profile.extractedSkills ? profile.extractedSkills.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [])
+    ]));
+    try {
+      localStorage.setItem('coursecompass_skills', JSON.stringify(skillsList));
+      localStorage.setItem('coursecompass_profile', JSON.stringify(profile));
+      document.body.setAttribute('data-coursecompass-skills', skillsList.join(','));
+    } catch {}
+  }, [profile]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const skills = params.get('skills');
     const source = params.get('source');
-    if (skills && source === 'extension') {
-      startPlan('Job Application (from Compass)', skills.split(','));
+    if (skills) {
+      const goal = params.get('goal') || params.get('role') || 'Job Application Target';
+      const cleanSkills = skills.split(',').map(s => s.trim()).filter(Boolean);
+      if (cleanSkills.length > 0) {
+        startPlan(goal, cleanSkills);
+      }
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     }
   }, [startPlan]);
 
   function selectGoal(d: Degree) {
-    const p = {...profile, goal: d.id};
+    const p = {...profile, goal: d.id, student_knows_degree: true};
     setProfile(p);
     void persist('/api/profile', p)
       .then(saved => setSync(saved ? 'Saved to account' : 'Guest session'))
@@ -311,9 +358,28 @@ export default function CourseCompassApp() {
         setSync('Unsaved changes');
         toast.error('Direction selected, but account save failed.');
       });
-    toast.success(`${d.name} is your current direction.`);
-    go('dashboard');
+    toast.success(`${d.name} selected. Showing verified university campuses.`);
+    go('universities');
   }
+
+  const handleSelectDegree = useCallback((degreeId: string) => {
+    const d = degrees.find(deg => deg.id === degreeId);
+    const updated: Profile = {
+      ...profile,
+      goal: degreeId,
+      student_knows_degree: true,
+    };
+    setProfile(updated);
+    void persist('/api/profile', updated)
+      .then(saved => setSync(saved ? 'Saved to account' : 'Guest session'))
+      .catch(() => {
+        setSync('Unsaved changes');
+      });
+    if (d) {
+      toast.success(`${d.name} selected. Showing verified university campuses.`);
+    }
+    go('universities');
+  }, [profile, go]);
 
   async function signOut() {
     await client?.auth.signOut();
@@ -526,6 +592,30 @@ export default function CourseCompassApp() {
                 : nav.find(n => n.id === view)?.label || 'My Profile'}
             </strong>
           </div>
+          <div className="journey-switcher" role="radiogroup" aria-label="Select journey pathway">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={currentJourney === 'student'}
+              className={`journey-switcher-btn ${currentJourney === 'student' ? 'active student' : ''}`}
+              onClick={() => switchJourney('student')}
+              title="Student journey (degrees, university finder, admissions)"
+            >
+              <GraduationCap size={15} />
+              <span>Student</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={currentJourney === 'career'}
+              className={`journey-switcher-btn ${currentJourney === 'career' ? 'active career' : ''}`}
+              onClick={() => switchJourney('career')}
+              title="Career journey (job matches, skill-gap analysis, career paths)"
+            >
+              <BriefcaseBusiness size={15} />
+              <span>Career</span>
+            </button>
+          </div>
           <div className="top-actions">
             <span className="guest-pill">
               <span />
@@ -564,6 +654,9 @@ export default function CourseCompassApp() {
               plan={plan}
               onStartPlan={startPlan}
               onSignIn={() => setAuthOpen(true)}
+              onStartStudentOnboarding={() => setStudentOnboardingOpen(true)}
+              onSelectDegree={handleSelectDegree}
+              liveUniversities={catalogueData?.universities}
             />
           )}
           {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} />}
@@ -628,6 +721,20 @@ export default function CourseCompassApp() {
         client={client}
         recovery={recovery}
         onRecovered={() => setRecovery(false)}
+      />
+      <StudentOnboarding
+        open={studentOnboardingOpen}
+        onOpenChange={setStudentOnboardingOpen}
+        profile={profile}
+        onSaveProfile={saveProfile}
+        onDegreeSelectedAndFindUnis={(degId, updated) => {
+          setProfile(updated);
+          go('dashboard');
+        }}
+        onCompletedExploreDegrees={updated => {
+          setProfile(updated);
+          go('dashboard');
+        }}
       />
       <Toaster position="bottom-center" />
     </SidebarProvider>

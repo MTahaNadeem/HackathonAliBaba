@@ -9,6 +9,21 @@
  * Runs in the context of the active tab page.
  */
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request.action === 'GET_COURSECOMPASS_SKILLS') {
+    try {
+      const stored = localStorage.getItem('coursecompass_skills');
+      let skills = stored ? JSON.parse(stored) : [];
+      if (!skills || !skills.length) {
+        const attr = document.body.getAttribute('data-coursecompass-skills');
+        if (attr) skills = attr.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      sendResponse({ success: true, skills: Array.isArray(skills) ? skills : [] });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
+    return true;
+  }
+
   if (request.action !== 'EXTRACT_JOB_DATA') return;
 
   try {
@@ -18,8 +33,6 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     sendResponse({ success: false, error: err.message });
   }
 
-  // Return true to keep the message channel open for async (not needed here
-  // but required if sendResponse could be called asynchronously).
   return true;
 });
 

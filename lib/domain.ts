@@ -1,7 +1,225 @@
 import {degrees,resources,skillNames,type University} from './catalogue';
-export type Profile={name:string;stage:string;qualification:string;subjects:string[];interests:string[];skills:string[];city:string;budget:number|null;hours:number;ssc:number|null;hssc:number|null;equivalence:boolean;net:number|null;goal:string;relocate:boolean;experience?:string;projects?:string;certifications?:string;links?:string;resumeText?:string;extractedSkills?:string};
-export const emptyProfile:Profile={name:'',stage:'Choosing a degree',qualification:'FSc',subjects:[],interests:[],skills:[],city:'',budget:null,hours:5,ssc:null,hssc:null,equivalence:false,net:null,goal:'',relocate:false,experience:'',projects:'',certifications:'',links:'',resumeText:'',extractedSkills:''};
+export type Journey = 'student' | 'career';
+export type Profile={name:string;stage:string;qualification:string;subjects:string[];interests:string[];skills:string[];city:string;budget:number|null;hours:number;ssc:number|null;hssc:number|null;equivalence:boolean;net:number|null;goal:string;relocate:boolean;experience?:string;projects?:string;certifications?:string;links?:string;resumeText?:string;extractedSkills?:string;journey?:Journey;student_knows_degree?:boolean;specialization?:string;career_goal?:string};
+export type UserProfile = Profile;
+export const emptyProfile:Profile={name:'',stage:'Choosing a degree',qualification:'FSc',subjects:[],interests:[],skills:[],city:'',budget:null,hours:5,ssc:null,hssc:null,equivalence:false,net:null,goal:'',relocate:false,experience:'',projects:'',certifications:'',links:'',resumeText:'',extractedSkills:'',journey:'student',student_knows_degree:undefined,specialization:'',career_goal:''};
 export function recommend(p:Profile){return degrees.map(d=>{const interests=d.interests.filter(i=>p.interests.includes(i));const subjects=d.subjects.filter(i=>p.subjects.includes(i));return {...d,reasons:[...interests.map(i=>`You enjoy ${i.toLowerCase()}`),...subjects.map(i=>`Connects with ${i}`)],score:interests.length*2+subjects.length}}).sort((a,b)=>b.score-a.score)}
+
+export interface DegreeRecommendation {
+  degree: (typeof degrees)[number];
+  score: number; // 0 - 100 normalized relevance estimate
+  reasons: string[];
+  isPreliminary: boolean;
+}
+
+/**
+ * Deterministically ranks up to `limit` relevant degrees based on user's actual subjects and interests.
+ * Normalizes relevance to 0–100 scale and provides factual, profile-based explanations.
+ * Never returns unrelated degrees with zero match just to fill slots.
+ */
+export function rankTopDegrees(p: Profile, limit = 5): DegreeRecommendation[] {
+  const userSubjects = Array.isArray(p.subjects) ? p.subjects : [];
+  const userInterests = Array.isArray(p.interests) ? p.interests : [];
+  const userSkills = Array.isArray(p.skills) ? p.skills : [];
+
+  const hasInputs = userSubjects.length > 0 || userInterests.length > 0;
+
+  if (!hasInputs) {
+    return degrees.slice(0, Math.min(limit, degrees.length)).map(d => ({
+      degree: d,
+      score: 50,
+      reasons: ['Preliminary recommendation. Add your high-school subjects and interests for personalized ranking.'],
+      isPreliminary: true,
+    }));
+  }
+
+  const scored = degrees
+    .map(d => {
+      const subjectMatches = d.subjects.filter(s =>
+        userSubjects.some(us => us.toLowerCase() === s.toLowerCase())
+      );
+      const interestMatches = d.interests.filter(i =>
+        userInterests.some(ui => ui.toLowerCase() === i.toLowerCase())
+      );
+      const skillMatches = d.skills.filter(sk =>
+        userSkills.some(usk => usk.toLowerCase() === sk.toLowerCase())
+      );
+
+      const reasons: string[] = [];
+      subjectMatches.forEach(s => reasons.push(`Directly connects with your ${s} background`));
+      interestMatches.forEach(i => reasons.push(`Matches your interest in ${i.toLowerCase()}`));
+      if (skillMatches.length > 0) {
+        reasons.push(`Applies your ${skillMatches.slice(0, 2).join(' & ')} skills`);
+      }
+
+      const maxPossible = d.subjects.length * 3 + d.interests.length * 2;
+      const rawScore = subjectMatches.length * 3 + interestMatches.length * 2 + Math.min(skillMatches.length, 2);
+
+      const normalizedScore =
+        rawScore > 0 ? Math.min(98, Math.max(30, Math.round((rawScore / maxPossible) * 100))) : 0;
+
+      return {
+        degree: d,
+        score: normalizedScore,
+        rawScore,
+        reasons: reasons.slice(0, 3),
+        isPreliminary: false,
+      };
+    })
+    .filter(item => item.rawScore > 0)
+    .sort((a, b) => b.score - a.score || b.rawScore - a.rawScore);
+
+  return scored.slice(0, limit).map(({ degree, score, reasons, isPreliminary }) => ({
+    degree,
+    score,
+    reasons,
+    isPreliminary,
+  }));
+}
+
+export interface RankedUniversity {
+  university: University;
+  assessment: ReturnType<typeof assessUniversity>;
+  tuitionDisplay: ReturnType<typeof getFeeDisplay>;
+  relevanceScore: number;
+  fitPercentage: number;
+  matchReasons: string[];
+}
+
+/**
+ * Calculates a 0–100% preference fit percentage for a university based on
+ * academic eligibility criteria, city location preference, and semester budget.
+ */
+export function calculateUniversityFit(u: University, p: Profile): { fitPercentage: number; matchReasons: string[] } {
+  const assessment = assessUniversity(u, p);
+  const matchReasons: string[] = [];
+
+  let academicScore = 20;
+  if (assessment.status === 'Academic minimum met') {
+    academicScore = 40;
+    matchReasons.push('Meets published academic criteria');
+  } else if (assessment.status === 'Subject route needs review') {
+    academicScore = 25;
+    matchReasons.push('Subject route requires departmental check');
+  } else if (assessment.status === 'Check current admissions') {
+    academicScore = 20;
+    matchReasons.push('Admission criteria pending confirmation');
+  } else if (assessment.status === 'Below published minimum') {
+    academicScore = 5;
+  }
+
+  let locationScore = 15;
+  const userCity = p.city?.trim().toLowerCase();
+  if (userCity && u.city.toLowerCase() === userCity) {
+    locationScore = 30;
+    matchReasons.push(`Located in ${u.city}`);
+  } else if (p.relocate) {
+    locationScore = 22;
+    matchReasons.push('Open to relocation');
+  } else if (!userCity) {
+    locationScore = 20;
+  } else {
+    locationScore = 10;
+  }
+
+  let budgetScore = 15;
+  if (assessment.budget === 'Within semester budget') {
+    budgetScore = 30;
+    matchReasons.push('Tuition fits your semester budget');
+  } else if (assessment.budget === 'Add your budget') {
+    budgetScore = 18;
+  } else if (assessment.budget === 'Costs need checking') {
+    budgetScore = 18;
+  } else if (assessment.budget === 'Above semester budget') {
+    budgetScore = 8;
+  }
+
+  let raw = academicScore + locationScore + budgetScore;
+
+  if (p.goal && u.degreeId) {
+    if (u.degreeId === p.goal) {
+      matchReasons.unshift('Matches your chosen degree');
+    } else {
+      raw -= 12;
+    }
+  }
+
+  const fitPercentage = Math.min(98, Math.max(30, raw));
+
+  return { fitPercentage, matchReasons };
+}
+
+/**
+ * Filters universities strictly to those that offer targetDegreeId,
+ * evaluates eligibility and costs via assessUniversity(), and ranks qualifying institutions.
+ */
+export function rankTopUniversities(
+  source: University[],
+  p: Profile,
+  targetDegreeId?: string,
+  limit = 5
+): RankedUniversity[] {
+  const goalId = targetDegreeId || p.goal;
+  if (!goalId) return [];
+
+  // Strictly filter to universities offering this exact degree
+  const offerings = source.filter(u => u.degreeId === goalId);
+  if (offerings.length === 0) return [];
+
+  const ranked = offerings.map(u => {
+    const assessment = assessUniversity(u, p);
+    const tuitionDisplay = getFeeDisplay(u);
+    const fit = calculateUniversityFit(u, p);
+    const matchReasons: string[] = [];
+
+    let score = 50;
+
+    // Academic eligibility
+    if (assessment.status === 'Academic minimum met') {
+      score += 30;
+      matchReasons.push('Meets published academic minimum');
+    } else if (assessment.status === 'Subject route needs review') {
+      score += 15;
+      matchReasons.push('Subject combination needs departmental check');
+    } else if (assessment.status === 'Check current admissions') {
+      score += 10;
+      matchReasons.push('Current admission rules need portal check');
+    } else if (assessment.status === 'Below published minimum') {
+      score -= 20;
+    }
+
+    // City preference
+    const userCity = p.city?.trim();
+    if (userCity && u.city.toLowerCase() === userCity.toLowerCase()) {
+      score += 15;
+      matchReasons.push(`Located in your preferred city (${u.city})`);
+    } else if (p.relocate) {
+      score += 5;
+    }
+
+    // Budget fit
+    if (assessment.budget === 'Within semester budget') {
+      score += 15;
+      matchReasons.push('Verified tuition fits within semester budget');
+    } else if (assessment.budget === 'Add your budget') {
+      matchReasons.push('Add budget to evaluate semester cost fit');
+    } else if (assessment.budget === 'Costs need checking') {
+      matchReasons.push('Official fee confirmation needed from university');
+    }
+
+    return {
+      university: u,
+      assessment,
+      tuitionDisplay,
+      relevanceScore: score,
+      fitPercentage: fit.fitPercentage,
+      matchReasons: matchReasons.slice(0, 3),
+    };
+  });
+
+  ranked.sort((a, b) => b.relevanceScore - a.relevanceScore || b.fitPercentage - a.fitPercentage);
+  return ranked.slice(0, limit);
+}
 
 /**
  * Checks whether a user profile has the minimum required preferences filled
@@ -14,10 +232,15 @@ export function recommend(p:Profile){return degrees.map(d=>{const interests=d.in
 export function isProfileComplete(p: Profile | null | undefined): boolean {
   if (!p) return false;
   const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
-  const hasGoal = Boolean(p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal));
+  const hasGoalOrModelRecommendation = Boolean(
+    (p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal)) ||
+    p.student_knows_degree === false ||
+    (Array.isArray(p.interests) && p.interests.length > 0) ||
+    (Array.isArray(p.subjects) && p.subjects.length > 0)
+  );
   const hasCity = Boolean(p.city && p.city.trim().length > 0);
   const hasBudget = typeof p.budget === 'number' && !isNaN(p.budget) && p.budget > 0;
-  return Boolean(hasQualification && hasGoal && hasCity && hasBudget);
+  return Boolean(hasQualification && hasGoalOrModelRecommendation && hasCity && hasBudget);
 }
 
 export function getProfileDirection(p: Profile | null | undefined) {
@@ -120,5 +343,234 @@ export type MilestoneState = 'Not started' | 'Learning' | 'Practiced' | 'Demonst
 export type Milestone={id:string;skill:string;title:string;startLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;structuredLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;practice:string;proveSkill?:string;state?:MilestoneState;notes?:string;evidenceUrl?:string;resourceId?:string|null;hours?:number;done?:boolean};
 export type InterviewPrep = {technical:{question:string;hint:string;answer:string}[];behavioral:{question:string;hint:string;answer:string}[];resumeChecklist:string[];applicationChecklist:string[]};
 export type Plan={id:string;title:string;goal:string;createdAt:string;hoursPerWeek?:number;milestones:Milestone[];interviewPrep?:InterviewPrep};
-export function createPlan(goal:string,skills:string[],hours:number):Plan{const wanted=Array.from(new Set(skills)).slice(0,8);return{id:crypto.randomUUID(),title:`Your path to ${goal}`,goal,hoursPerWeek:Math.max(1,Math.min(30,hours)),createdAt:new Date().toISOString(),milestones:wanted.map((skill,i)=>{const r=resources.find(r=>r.skills.includes(skill))||resources.find(r=>r.skills.some(s=>s.toLowerCase()===skill.toLowerCase()));return{id:`step-${i}`,skill,title:`Build evidence of ${skill.toLowerCase()}`,startLearning:null,structuredLearning:null,practice:r?.practice||`Complete a small practical task demonstrating ${skill.toLowerCase()} and request feedback.`,proveSkill:'Build a project.',state:'Not started',notes:'',evidenceUrl:'',resourceId:r?.id||null,hours:4,done:false}})}}
+
+
+export function getSkillResources(skill: string): {
+  startLearning: { title: string; url: string; provider: string; level: string; cost: string };
+  structuredLearning: { title: string; url: string; provider: string; level: string; cost: string };
+  practice: string;
+  proveSkill: string;
+} {
+  const s = skill.trim();
+  const lower = s.toLowerCase();
+  
+  if (lower.includes('react')) {
+    return {
+      startLearning: { title: 'React 19 / 18 Crash Course for Beginners', url: 'https://www.youtube.com/watch?v=w7ejDZ8SWv8', provider: 'Traversy Media · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'React Official Documentation & Interactive Guide', url: 'https://react.dev/learn', provider: 'React Team', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Build a modular dashboard application with reusable components, state hooks (useState, useEffect), and form validation.',
+      proveSkill: 'Develop a responsive web app with client-side routing, theme toggling, and asynchronous API integration; deploy to Vercel.'
+    };
+  }
+  if (lower.includes('typescript')) {
+    return {
+      startLearning: { title: 'TypeScript Full Course for Beginners', url: 'https://www.youtube.com/watch?v=BwuLxPH8IDs', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'The TypeScript Handbook', url: 'https://www.typescriptlang.org/docs/handbook/intro.html', provider: 'Microsoft', level: 'Intermediate', cost: 'Free' },
+      practice: 'Convert an existing JavaScript project to strict TypeScript, defining interfaces, union types, and generic utilities.',
+      proveSkill: 'Build a type-safe REST API client library or utility package with comprehensive unit tests.'
+    };
+  }
+  if (lower.includes('javascript') || lower === 'js') {
+    return {
+      startLearning: { title: 'JavaScript Tutorial for Beginners - Full Course', url: 'https://www.youtube.com/watch?v=W6NZfCO5SIk', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'JavaScript Algorithms and Data Structures', url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/', provider: 'freeCodeCamp', level: 'All levels', cost: 'Free' },
+      practice: 'Implement interactive DOM operations, event handling, and asynchronous API calls using modern async/await syntax.',
+      proveSkill: 'Construct a browser-based application (e.g. kanban board or expense tracker) with persistent local storage.'
+    };
+  }
+  if (lower.includes('node') || lower.includes('express')) {
+    return {
+      startLearning: { title: 'Node.js and Express.js Full Course', url: 'https://www.youtube.com/watch?v=Oe421EPjeBE', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Back End Development and APIs Certification', url: 'https://www.freecodecamp.org/learn/back-end-development-and-apis/', provider: 'freeCodeCamp', level: 'Intermediate', cost: 'Free' },
+      practice: 'Create a RESTful API server with Express, robust error middleware, request validation, and database operations.',
+      proveSkill: 'Build a production-ready API service featuring JWT authentication, rate limiting, and automated endpoint tests.'
+    };
+  }
+  if (lower.includes('next')) {
+    return {
+      startLearning: { title: 'Next.js App Router Tutorial for Beginners', url: 'https://www.youtube.com/watch?v=ZVnjOPwW444', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Next.js Interactive Foundation Course', url: 'https://nextjs.org/learn', provider: 'Vercel', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Build a fast server-rendered web app utilizing Server Components, Server Actions, and dynamic layout routes.',
+      proveSkill: 'Deploy a full-stack Next.js production portal with dynamic SEO tags, caching strategies, and database connection.'
+    };
+  }
+  if (lower.includes('python')) {
+    return {
+      startLearning: { title: 'Python for Beginners - Full Course', url: 'https://www.youtube.com/watch?v=rfscVS0vtbw', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Scientific Computing with Python Certification', url: 'https://www.freecodecamp.org/learn/scientific-computing-with-python/', provider: 'freeCodeCamp', level: 'All levels', cost: 'Free' },
+      practice: 'Write modular Python scripts to parse structured data files, clean datasets, and handle runtime exceptions.',
+      proveSkill: 'Build an automated end-to-end data extraction and analysis pipeline with exported summary visualizations.'
+    };
+  }
+  if (lower.includes('sql') || lower.includes('postgres') || lower.includes('mysql')) {
+    return {
+      startLearning: { title: 'SQL Tutorial - Full Database Course for Beginners', url: 'https://www.youtube.com/watch?v=HXV3zeQKqGY', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Interactive SQL Lessons and Challenges', url: 'https://sqlbolt.com/', provider: 'SQLBolt', level: 'Beginner', cost: 'Free' },
+      practice: 'Write complex multi-table queries utilizing INNER/LEFT JOINs, subqueries, GROUP BY aggregations, and window functions.',
+      proveSkill: 'Design an optimal third-normal-form relational schema with proper foreign keys, constraints, and query indexes.'
+    };
+  }
+  if (lower.includes('git')) {
+    return {
+      startLearning: { title: 'Git and GitHub for Beginners - Crash Course', url: 'https://www.youtube.com/watch?v=RGOj5yH7evk', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Pro Git Book (Complete Reference)', url: 'https://git-scm.com/book/en/v2', provider: 'Git-SCM', level: 'Intermediate', cost: 'Free' },
+      practice: 'Practice branching, staging, atomic commits, interactive rebasing, and resolving tricky merge conflicts.',
+      proveSkill: 'Set up an open-source GitHub repository with issue templates, branch protection rules, and CI validation.'
+    };
+  }
+  if (lower.includes('docker')) {
+    return {
+      startLearning: { title: 'Docker Tutorial for Beginners', url: 'https://www.youtube.com/watch?v=fqMOX6JJhGo', provider: 'TechWorld with Nana · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Docker Official Getting Started Guide', url: 'https://docs.docker.com/get-started/', provider: 'Docker', level: 'Beginner', cost: 'Free' },
+      practice: 'Write an optimized multi-stage Dockerfile for a web application and manage local containers and volumes.',
+      proveSkill: 'Create a docker-compose.yml setup orchestrating frontend, backend API, and database services with networking.'
+    };
+  }
+  if (lower.includes('kubernetes') || lower === 'k8s') {
+    return {
+      startLearning: { title: 'Kubernetes Crash Course for Beginners', url: 'https://www.youtube.com/watch?v=X48VuDVv0do', provider: 'TechWorld with Nana · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Kubernetes Official Tutorials', url: 'https://kubernetes.io/docs/tutorials/', provider: 'CNCF', level: 'Intermediate', cost: 'Free' },
+      practice: 'Deploy application Pods, Services, and Deployments to a local Minikube or kind cluster.',
+      proveSkill: 'Set up Ingress routing, ConfigMaps, and PersistentVolumeClaims for a production-like microservice deployment.'
+    };
+  }
+  if (lower.includes('aws') || lower.includes('cloud')) {
+    return {
+      startLearning: { title: 'AWS Certified Cloud Practitioner Training', url: 'https://www.youtube.com/watch?v=SOTamWNgDKc', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'AWS Skill Builder Free Learning Path', url: 'https://explore.skillbuilder.aws/', provider: 'Amazon Web Services', level: 'Beginner to Intermediate', cost: 'Free' },
+      practice: 'Deploy a static frontend on AWS S3 with CloudFront and configure IAM policies and roles with least privilege.',
+      proveSkill: 'Build a serverless REST API using AWS Lambda, API Gateway, and DynamoDB.'
+    };
+  }
+  if (lower.includes('tailwind')) {
+    return {
+      startLearning: { title: 'Tailwind CSS Full Course for Beginners', url: 'https://www.youtube.com/watch?v=lCxcTsOHrjo', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Tailwind CSS Documentation & Utility Reference', url: 'https://tailwindcss.com/docs', provider: 'Tailwind Labs', level: 'Beginner', cost: 'Free' },
+      practice: 'Recreate a modern landing page hero and features section using utility classes, grid, and responsive breakpoints.',
+      proveSkill: 'Build a fully responsive, accessible component library with dark mode support using Tailwind CSS.'
+    };
+  }
+  if (lower.includes('machine learning') || lower.includes('deep learning') || lower.includes('ai')) {
+    return {
+      startLearning: { title: 'Machine Learning for Everybody - Full Course', url: 'https://www.youtube.com/watch?v=i_LwzRVP7bg', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Machine Learning Specialization', url: 'https://www.coursera.org/specializations/machine-learning-introduction', provider: 'Coursera · Andrew Ng', level: 'Beginner to Intermediate', cost: 'Free audit' },
+      practice: 'Train and evaluate supervised classification and regression models using scikit-learn on a benchmark dataset.',
+      proveSkill: 'Deliver a machine learning project notebook with data cleaning, feature engineering, cross-validation, and metrics.'
+    };
+  }
+  if (lower === 'r' || lower.includes('r programming') || lower.includes('r language')) {
+    return {
+      startLearning: { title: 'R Programming Tutorial - Learn the Basics', url: 'https://www.youtube.com/watch?v=_V8eKsto3Ug', provider: 'freeCodeCamp · YouTube', level: 'Beginner', cost: 'Free' },
+      structuredLearning: { title: 'Introduction to R for Data Science', url: 'https://www.edx.org/learn/r-programming', provider: 'edX', level: 'Beginner', cost: 'Free audit' },
+      practice: 'Load tabular data into R data frames, compute summary statistics, and generate publication-quality ggplot2 charts.',
+      proveSkill: 'Conduct an exploratory data analysis project with statistical hypothesis testing and reproducible RMarkdown report.'
+    };
+  }
+
+  // Smart fallback for any other skill
+  const matchedResource = resources.find(r => r.skills.some(sk => sk.toLowerCase() === lower));
+  return {
+    startLearning: {
+      title: `${s} Crash Course & Core Concepts`,
+      url: matchedResource?.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(s + ' tutorial for beginners')}`,
+      provider: matchedResource?.provider || 'Developer Education · YouTube',
+      level: 'Beginner',
+      cost: 'Free'
+    },
+    structuredLearning: {
+      title: `${s} Documentation & Interactive Learning`,
+      url: matchedResource?.url || `https://www.google.com/search?q=${encodeURIComponent(s + ' official documentation tutorial')}`,
+      provider: matchedResource?.provider || 'Official Documentation & Guides',
+      level: 'Intermediate',
+      cost: 'Free'
+    },
+    practice: matchedResource?.practice || `Complete foundational exercises to understand the core concepts, syntax, and workflow of ${s}.`,
+    proveSkill: `Build a small real-world project or module demonstrating hands-on competence in ${s}.`
+  };
+}
+
+export function getInterviewPrepForGoal(goal: string, skills: string[]): InterviewPrep {
+  const topSkills = skills.slice(0, 3).join(' and ') || 'the required technologies';
+  const role = goal.replace(/^Job Application \(from Compass\)$/i, 'Software Engineering Role').replace(/^Target Job Role$/i, 'Professional Technical Role');
+  return {
+    technical: [
+      {
+        question: `How do you explain the core concepts and best practices when working with ${skills[0] || 'your primary stack'}?`,
+        hint: `Discuss fundamentals, common pitfalls, performance considerations, and how you structure code maintainably.`,
+        answer: `Provide a clear high-level definition, explain typical architectural patterns, describe error handling, and illustrate with an experience where you applied it effectively.`
+      },
+      {
+        question: `Can you walk through a time you had to debug a difficult issue involving ${skills[1] || 'system integration'}?`,
+        hint: `Outline your systematic troubleshooting steps: reproducing the bug, inspecting logs/network, isolating root causes, and writing regression tests.`,
+        answer: `Structure the response using STAR: describe the symptoms, how you verified assumptions, identified the exact failure point, and shipped a verified fix.`
+      },
+      {
+        question: `How do you ensure scalability, code quality, and security when building features for ${role}?`,
+        hint: `Mention testing methodologies, code reviews, clean separation of concerns, and security considerations (input validation, auth, secrets).`,
+        answer: `Explain that scalability starts with simple, modular design, automated unit/integration tests, defensive programming, and continuous monitoring.`
+      }
+    ],
+    behavioral: [
+      {
+        question: `Describe a situation where you had to quickly learn a new technology or skill (like ${skills[0] || 'a new framework'}) under a tight deadline.`,
+        hint: `Focus on your learning strategy: documentation, building minimal prototypes, seeking feedback, and delivering on time.`,
+        answer: `Highlight your initiative, resourcefulness, structured approach to breaking down the topic, and delivering a functional solution on schedule.`
+      },
+      {
+        question: `Tell me about a time you disagreed with a teammate or technical decision. How did you handle it?`,
+        hint: `Demonstrate empathy, evidence-based reasoning, focus on project goals rather than ego, and commitment to the team once a decision was made.`,
+        answer: `Frame it around listening first, discussing tradeoffs objectively with data/benchmarks, and maintaining strong collaborative alignment.`
+      },
+      {
+        question: `What excites you most about this role and how does your skill journey prepare you for it?`,
+        hint: `Connect your target learning roadmap directly to the company's domain and mission.`,
+        answer: `Express genuine curiosity for the problem space, mention the specific skills you have strengthened, and show eagerness to create immediate impact.`
+      }
+    ],
+    resumeChecklist: [
+      `Feature ${topSkills} prominently in your technical skills and project descriptions.`,
+      `Quantify accomplishments with metrics (e.g., 'reduced load time by 30%', 'automated workflow saving 5 hrs/week').`,
+      `Include live demo links and clean GitHub repositories with comprehensive README files.`,
+      `Tailor your professional summary to reflect the specific requirements of ${role}.`
+    ],
+    applicationChecklist: [
+      `Review company engineering blogs, open source repos, and recent product launches before applying.`,
+      `Customise your cover letter or introductory note highlighting how your recent skills align with their open role.`,
+      `Prepare a 2-minute elevator pitch summarizing your background, key strengths, and learning trajectory.`,
+      `Follow up politely with the hiring manager or technical recruiter on LinkedIn within 5–7 days.`
+    ]
+  };
+}
+
+export function createPlan(goal:string,skills:string[],hours:number):Plan{
+  const wanted=Array.from(new Set(skills)).slice(0,8);
+  const cleanGoal = goal?.trim() || 'Software Developer';
+  return {
+    id:crypto.randomUUID(),
+    title:`Your path to ${cleanGoal}`,
+    goal: cleanGoal,
+    hoursPerWeek:Math.max(1,Math.min(30,hours)),
+    createdAt:new Date().toISOString(),
+    milestones:wanted.map((skill,i)=>{
+      const r=resources.find(r=>r.skills.includes(skill));
+      const enriched = getSkillResources(skill);
+      return {
+        id:`step-${i}`,
+        skill,
+        title:`Master ${skill}`,
+        startLearning: enriched.startLearning,
+        structuredLearning: enriched.structuredLearning,
+        practice: enriched.practice,
+        proveSkill: enriched.proveSkill,
+        state:'Not started' as MilestoneState,
+        notes:'',
+        evidenceUrl:'',
+        resourceId:r?.id||null,
+        hours:4,
+        done:false
+      };
+    }),
+    interviewPrep: getInterviewPrepForGoal(cleanGoal, wanted)
+  };
+}
 export function exportPlan(p:Plan){return `# ${p.title}\n\n`+p.milestones.map((m,i)=>{return `## ${i+1}. ${m.title}\n- Status: ${m.state||(m.done?'Demonstrated':'Not started')}\n`}).join('\n')}
