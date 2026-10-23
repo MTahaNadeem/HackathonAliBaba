@@ -23,7 +23,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import {degrees, universities as catalogueUniversities, type Degree, type University, type VerificationStatus} from '@/lib/catalogue';
-import {assessUniversity, emptyProfile, rankTopDegrees, rankTopUniversities, type Profile, type Plan} from '@/lib/domain';
+import {assessUniversity, calculateUniversityFit, emptyProfile, rankTopDegrees, rankTopUniversities, type Profile, type Plan} from '@/lib/domain';
 import {Progress} from '@/components/ui/progress';
 
 // ── SVG Radial Progress Ring
@@ -161,7 +161,9 @@ export default function Dashboard({
           if (a.degreeId === goal.id && b.degreeId !== goal.id) return -1;
           if (b.degreeId === goal.id && a.degreeId !== goal.id) return 1;
         }
-        return 0;
+        const fitA = calculateUniversityFit(a, profile).fitPercentage;
+        const fitB = calculateUniversityFit(b, profile).fitPercentage;
+        return fitB - fitA;
       })
       .slice(0, 5);
 
@@ -297,7 +299,7 @@ export default function Dashboard({
               </div>
             ) : (
               <div className="uni-rec-grid">
-                {rankedUnis.map(item => {
+                {rankedUnis.map((item, index) => {
                   const u = item.university;
                   const a = item.assessment;
                   const fee = item.tuitionDisplay;
@@ -312,7 +314,25 @@ export default function Dashboard({
                             <span className="uni-rec-city"><MapPin size={11} />{u.city}</span>
                           </div>
                         </div>
-                        <StatusPill status={u.verificationStatus} />
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                          {index === 0 && (
+                            <span
+                              className={`degree-score-pill ${item.fitPercentage >= 70 ? 'high' : ''}`}
+                              style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}
+                            >
+                              #1 Best Fit · {item.fitPercentage}%
+                            </span>
+                          )}
+                          {index === 1 && (
+                            <span
+                              className={`degree-score-pill ${item.fitPercentage >= 70 ? 'high' : ''}`}
+                              style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}
+                            >
+                              #2 Fit · {item.fitPercentage}%
+                            </span>
+                          )}
+                          <StatusPill status={u.verificationStatus} />
+                        </div>
                       </div>
 
                       <span className="uni-rec-programme">{u.programme}</span>
@@ -595,8 +615,9 @@ export default function Dashboard({
               </div>
             ) : (
               <ul className="db-uni-list" role="list" style={{listStyle: 'none', margin: 0, padding: 0}}>
-                {sideUnis.map(u => {
+                {sideUnis.map((u, index) => {
                   const a = assessUniversity(u, profile);
+                  const fit = calculateUniversityFit(u, profile);
                   return (
                     <li key={u.id} className="db-uni-item">
                       <div className="db-uni-logo">{u.short}</div>
@@ -607,7 +628,19 @@ export default function Dashboard({
                             <span className="db-uni-name">{u.name}</span>
                             <span className="db-uni-city"><MapPin size={10} />{u.city}</span>
                           </div>
-                          <StatusPill status={u.verificationStatus} />
+                          <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            {index === 0 && (
+                              <span className={`degree-score-pill ${fit.fitPercentage >= 70 ? 'high' : ''}`} style={{fontSize: '9.5px', padding: '1px 6px', borderRadius: '8px'}}>
+                                #1 Fit · {fit.fitPercentage}%
+                              </span>
+                            )}
+                            {index === 1 && (
+                              <span className={`degree-score-pill ${fit.fitPercentage >= 70 ? 'high' : ''}`} style={{fontSize: '9.5px', padding: '1px 6px', borderRadius: '8px'}}>
+                                #2 Fit · {fit.fitPercentage}%
+                              </span>
+                            )}
+                            <StatusPill status={u.verificationStatus} />
+                          </div>
                         </div>
                         <span className={`db-uni-budget ${a.budget === 'Within semester budget' ? 'budget-ok' : (a.budget === 'Add your budget' || a.budget === 'Costs need checking') ? 'budget-neutral' : 'budget-high'}`}>{a.budget}</span>
                       </div>

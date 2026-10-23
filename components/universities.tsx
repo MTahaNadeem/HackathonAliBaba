@@ -2,7 +2,7 @@
 import {useState} from 'react';
 import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw,Sparkles} from 'lucide-react';
 import {universities as catalogueUniversities,sourceLinks,degrees,type University,type VerificationStatus} from '@/lib/catalogue';
-import {assessUniversity,getFeeDisplay,type Profile} from '@/lib/domain';
+import {assessUniversity,calculateUniversityFit,getFeeDisplay,type Profile} from '@/lib/domain';
 import {Choice,CheckField,Empty} from './fields';
 
 /** Format a last_verified_at ISO string to a human-readable date */
@@ -66,7 +66,9 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
         if (a.degreeId === goalDegree.id && b.degreeId !== goalDegree.id) return -1;
         if (b.degreeId === goalDegree.id && a.degreeId !== goalDegree.id) return 1;
       }
-      return 0;
+      const fitA = calculateUniversityFit(a, profile).fitPercentage;
+      const fitB = calculateUniversityFit(b, profile).fitPercentage;
+      return fitB - fitA;
     });
 
   const liveCount = source.filter(u => u.verificationStatus === 'live_refreshed').length;
@@ -107,11 +109,12 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   <div className="filter-row"><label className="search-field"><Search size={18}/><input aria-label="Search universities" placeholder="Search universities or programmes…" value={query} onChange={e=>setQuery(e.target.value)}/></label><Choice label="City" value={city} options={Array.from(new Set(['All cities',...source.map(u=>u.city),...(profile.city?[profile.city]:[])]))} onChange={setCity}/></div>
   <div className="filter-row secondary"><CheckField label="Only verified costs within my budget" checked={budgetOnly} onChange={setBudgetOnly}/><span className="muted small-text">{list.length} programme listings ({liveCount} live-refreshed · {manualCount} manual snapshots · {needsInfoCount} inquiry required) · {dataSource==='database'?'live database':'initial curated catalogue'}</span></div>
 
-  <div className="university-list">{list.map(u=>{
+  <div className="university-list">{list.map((u, index)=>{
     const a=assessUniversity(u,profile);
+    const fit=calculateUniversityFit(u,profile);
     const vs=u.verificationStatus;
     const {tuition,mandatory,isFeeVerified}=getFeeDisplay(u);
-    return <article className={`university-card${vs==='stale'?' card-stale':''}${vs==='needs_information'?' card-needs-info':''}`} key={u.id}><div className="university-logo">{u.short}</div><div className="university-content"><div className="university-title"><div><span className="location"><MapPin size={14}/>{u.city}</span><h2>{u.name}</h2><p>{u.programme}</p></div><span className="status-label">{a.status}</span></div>
+    return <article className={`university-card${vs==='stale'?' card-stale':''}${vs==='needs_information'?' card-needs-info':''}`} key={u.id}><div className="university-logo">{u.short}</div><div className="university-content"><div className="university-title"><div><span className="location"><MapPin size={14}/>{u.city}</span><h2>{u.name}</h2><p>{u.programme}</p></div><div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px'}}>{index === 0 && <span className={`degree-score-pill ${fit.fitPercentage >= 70 ? 'high' : ''}`} style={{ fontSize: '11.5px', padding: '3px 10px', borderRadius: '12px' }}>#1 Best Fit · {fit.fitPercentage}%</span>}{index === 1 && <span className={`degree-score-pill ${fit.fitPercentage >= 70 ? 'high' : ''}`} style={{ fontSize: '11.5px', padding: '3px 10px', borderRadius: '12px' }}>#2 Fit · {fit.fitPercentage}%</span>}<span className="status-label">{a.status}</span></div></div>
 
   <VerificationBadge status={vs} lastVerifiedAt={u.lastVerifiedAt} sourceUrl={u.sourceUrl||u.feeUrl}/>
 

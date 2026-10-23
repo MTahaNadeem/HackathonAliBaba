@@ -82,7 +82,71 @@ export interface RankedUniversity {
   assessment: ReturnType<typeof assessUniversity>;
   tuitionDisplay: ReturnType<typeof getFeeDisplay>;
   relevanceScore: number;
+  fitPercentage: number;
   matchReasons: string[];
+}
+
+/**
+ * Calculates a 0–100% preference fit percentage for a university based on
+ * academic eligibility criteria, city location preference, and semester budget.
+ */
+export function calculateUniversityFit(u: University, p: Profile): { fitPercentage: number; matchReasons: string[] } {
+  const assessment = assessUniversity(u, p);
+  const matchReasons: string[] = [];
+
+  let academicScore = 20;
+  if (assessment.status === 'Academic minimum met') {
+    academicScore = 40;
+    matchReasons.push('Meets published academic criteria');
+  } else if (assessment.status === 'Subject route needs review') {
+    academicScore = 25;
+    matchReasons.push('Subject route requires departmental check');
+  } else if (assessment.status === 'Check current admissions') {
+    academicScore = 20;
+    matchReasons.push('Admission criteria pending confirmation');
+  } else if (assessment.status === 'Below published minimum') {
+    academicScore = 5;
+  }
+
+  let locationScore = 15;
+  const userCity = p.city?.trim().toLowerCase();
+  if (userCity && u.city.toLowerCase() === userCity) {
+    locationScore = 30;
+    matchReasons.push(`Located in ${u.city}`);
+  } else if (p.relocate) {
+    locationScore = 22;
+    matchReasons.push('Open to relocation');
+  } else if (!userCity) {
+    locationScore = 20;
+  } else {
+    locationScore = 10;
+  }
+
+  let budgetScore = 15;
+  if (assessment.budget === 'Within semester budget') {
+    budgetScore = 30;
+    matchReasons.push('Tuition fits your semester budget');
+  } else if (assessment.budget === 'Add your budget') {
+    budgetScore = 18;
+  } else if (assessment.budget === 'Costs need checking') {
+    budgetScore = 18;
+  } else if (assessment.budget === 'Above semester budget') {
+    budgetScore = 8;
+  }
+
+  let raw = academicScore + locationScore + budgetScore;
+
+  if (p.goal && u.degreeId) {
+    if (u.degreeId === p.goal) {
+      matchReasons.unshift('Matches your chosen degree');
+    } else {
+      raw -= 12;
+    }
+  }
+
+  const fitPercentage = Math.min(98, Math.max(30, raw));
+
+  return { fitPercentage, matchReasons };
 }
 
 /**
@@ -105,6 +169,7 @@ export function rankTopUniversities(
   const ranked = offerings.map(u => {
     const assessment = assessUniversity(u, p);
     const tuitionDisplay = getFeeDisplay(u);
+    const fit = calculateUniversityFit(u, p);
     const matchReasons: string[] = [];
 
     let score = 50;
@@ -147,11 +212,12 @@ export function rankTopUniversities(
       assessment,
       tuitionDisplay,
       relevanceScore: score,
+      fitPercentage: fit.fitPercentage,
       matchReasons: matchReasons.slice(0, 3),
     };
   });
 
-  ranked.sort((a, b) => b.relevanceScore - a.relevanceScore);
+  ranked.sort((a, b) => b.relevanceScore - a.relevanceScore || b.fitPercentage - a.fitPercentage);
   return ranked.slice(0, limit);
 }
 
