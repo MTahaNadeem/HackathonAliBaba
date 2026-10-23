@@ -30,7 +30,7 @@ import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
 import StudentOnboarding from './student-onboarding';
-import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
+import {emptyProfile, createPlan, synthesizeCurriculumIfMissing, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
@@ -220,6 +220,15 @@ export default function CourseCompassApp() {
   useEffect(() => {
     if (!session) {
       setSync('Guest session');
+      try {
+        const saved = localStorage.getItem('coursecompass_plan');
+        if (saved) {
+          const parsed = planSchema.safeParse(JSON.parse(saved));
+          if (parsed.success) {
+            setPlan(prev => prev || synthesizeCurriculumIfMissing(parsed.data));
+          }
+        }
+      } catch {}
       return;
     }
     let alive = true;
@@ -238,7 +247,11 @@ export default function CourseCompassApp() {
         }
         if (l.plan) {
           const checked = planSchema.safeParse(l.plan);
-          if (checked.success) setPlan(checked.data);
+          if (checked.success) {
+            const enriched = synthesizeCurriculumIfMissing(checked.data);
+            setPlan(enriched);
+            try { localStorage.setItem('coursecompass_plan', JSON.stringify(enriched)); } catch {}
+          }
         }
         setSync('Account connected');
       })
@@ -289,9 +302,13 @@ export default function CourseCompassApp() {
   }
 
   async function updatePlan(p: Plan) {
-    setPlan(p);
+    const enriched = synthesizeCurriculumIfMissing(p);
+    setPlan(enriched);
     try {
-      const saved = await persist('/api/plans', p);
+      localStorage.setItem('coursecompass_plan', JSON.stringify(enriched));
+    } catch {}
+    try {
+      const saved = await persist('/api/plans', enriched);
       setSync(saved ? 'Saved to account' : 'Guest session');
       if (saved) toast.success('Learning plan saved.');
     } catch (e) {
@@ -305,17 +322,32 @@ export default function CourseCompassApp() {
       setBusy(true);
       toast('Generating your personalised learning plan...', { duration: 3000 });
       try {
-        const r = await fetch('/api/plans/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goalTitle, skills: skillsList.slice(0, 8), profile: recommendationProfile(profile) }) });
-        if(r.ok) {
+        const goalType = profile.journey === 'career' ? 'skill' : (profile.specialization ? 'specialization' : 'degree');
+        const r = await fetch('/api/plans/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            goal: goalTitle,
+            skills: skillsList.slice(0, 8),
+            profile: recommendationProfile(profile),
+            mode: 'curriculum',
+            goalType
+          })
+        });
+        if (r.ok) {
           const p = await r.json() as Plan;
           await updatePlan(p);
           go('learning');
-          toast.success(session?'Your learning plan is ready.':'Plan ready for this session. Download it to keep a copy.');
+          toast.success(session ? 'Your learning plan is ready.' : 'Plan ready for this session. Download it to keep a copy.');
           return;
         }
-      } catch(e) {} finally { setBusy(false); }
+      } catch (e) {
+      } finally {
+        setBusy(false);
+      }
       // Fallback
-      const p = createPlan(goalTitle, skillsList, profile.hours);
+      const base = createPlan(goalTitle, skillsList, profile.hours);
+      const p = synthesizeCurriculumIfMissing(base);
       void updatePlan(p);
       go('learning');
       toast.success(session ? 'Your learning plan is ready.' : 'Plan ready for this session. Download it to keep a copy.');
