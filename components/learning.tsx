@@ -21,10 +21,8 @@ import {
   ChevronDown,
   Layers,
   Sparkles,
-  ExternalLink,
   Target,
   RefreshCw,
-  Compass,
   GraduationCap
 } from 'lucide-react';
 import { resources, degrees } from '@/lib/catalogue';
@@ -78,20 +76,33 @@ function QuestionBlock({ q, index }: { q: { question: string; hint: string; answ
   );
 }
 
-function ResourceIcon({ type }: { type: LessonResource['resourceType'] }) {
-  switch (type) {
-    case 'video':
-      return <Video size={16} />;
-    case 'documentation':
-      return <Library size={16} />;
-    case 'exercise':
-      return <Code2 size={16} />;
-    case 'article':
-      return <FileText size={16} />;
-    case 'course':
-    default:
-      return <BookOpen size={16} />;
-  }
+function ResourceIconBadge({ type }: { type: LessonResource['resourceType'] }) {
+  const styles: Record<string, { bg: string; color: string; icon: typeof BookOpen }> = {
+    video: { bg: '#fee2e2', color: '#dc2626', icon: Video },
+    documentation: { bg: '#f3e8ff', color: '#9333ea', icon: Library },
+    exercise: { bg: '#dcfce7', color: '#16a34a', icon: Code2 },
+    article: { bg: '#e0f2fe', color: '#0284c7', icon: FileText },
+    course: { bg: '#dbeafe', color: '#2563eb', icon: BookOpen }
+  };
+  const config = styles[type] || styles.course;
+  const IconComponent = config.icon;
+
+  return (
+    <div
+      style={{
+        width: '38px',
+        height: '38px',
+        borderRadius: '10px',
+        background: config.bg,
+        color: config.color,
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0
+      }}
+    >
+      <IconComponent size={18} />
+    </div>
+  );
 }
 
 export default function Learning({
@@ -355,126 +366,352 @@ export default function Learning({
                   className={`curriculum-module ${isModComplete ? 'is-complete' : ''}`}
                   key={mod.id || `mod-${modIdx}`}
                   open={modIdx === 0 || (!isModComplete && modDone > 0)}
+                  style={{
+                    background: '#ffffff',
+                    border: isModComplete ? '1px solid #86efac' : '1px solid #e2e8f0',
+                    borderRadius: '18px',
+                    overflow: 'hidden',
+                    marginBottom: '20px',
+                    boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)'
+                  }}
                 >
-                  <summary>
-                    <div className="curriculum-module-number">
-                      {isModComplete ? <Check size={20} /> : String(modIdx + 1).padStart(2, '0')}
+                  <summary
+                    style={{
+                      padding: '24px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '18px',
+                      cursor: 'pointer',
+                      listStyle: 'none'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '14px',
+                        background: isModComplete ? '#ecfdf5' : '#eff6ff',
+                        color: isModComplete ? '#059669' : '#2563eb',
+                        display: 'grid',
+                        placeItems: 'center',
+                        flexShrink: 0,
+                        fontWeight: 700,
+                        fontSize: '14px'
+                      }}
+                    >
+                      {isModComplete ? <Check size={22} /> : String(modIdx + 1).padStart(2, '0')}
                     </div>
 
-                    <div className="curriculum-module-heading">
-                      <span className="eyebrow" style={{ color: isModComplete ? '#059669' : '#3b82f6' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          letterSpacing: '1px',
+                          textTransform: 'uppercase',
+                          color: isModComplete ? '#059669' : '#2563eb',
+                          display: 'block',
+                          marginBottom: '3px'
+                        }}
+                      >
                         MODULE {modIdx + 1} · {isModComplete ? 'COMPLETED' : `${modDone}/${modTotal} COMPLETED`}
                       </span>
-                      <h3>{mod.title}</h3>
-                      <p>{mod.description}</p>
+                      <h3 style={{ margin: '0 0 6px', fontSize: '20px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.4px' }}>
+                        {mod.title}
+                      </h3>
+                      <p style={{ margin: '0 0 12px', fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
+                        {mod.description}
+                      </p>
 
-                      <div className="curriculum-module-meta">
-                        <span>
-                          <Clock3 size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px', color: '#64748b', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <Clock3 size={13} style={{ color: '#3b82f6' }} />
                           {mod.estimatedDuration}
                         </span>
-                        <span>
-                          <BookOpen size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <BookOpen size={13} style={{ color: '#10b981' }} />
                           {modDone} of {modTotal} lessons finished
                         </span>
-                        <span>{modPercent}% module progress</span>
+                        <span style={{ fontWeight: 600, color: isModComplete ? '#059669' : '#1e293b' }}>
+                          {modPercent}% module progress
+                        </span>
                       </div>
 
-                      <Progress value={modPercent} className="plan-bar" style={{ height: '5px', maxWidth: '380px' }} />
+                      <Progress value={modPercent} className="plan-bar" style={{ height: '6px', maxWidth: '400px' }} />
                     </div>
 
-                    <ChevronDown className="curriculum-chevron" size={20} />
+                    <ChevronDown className="curriculum-chevron" size={20} style={{ color: '#64748b', marginTop: '12px' }} />
                   </summary>
 
-                  <div className="curriculum-module-body">
+                  <div
+                    style={{
+                      borderTop: '1px solid #e2e8f0',
+                      padding: '24px',
+                      background: '#f8fafc'
+                    }}
+                  >
                     {mod.learningObjectives && mod.learningObjectives.length > 0 && (
-                      <div className="curriculum-objectives">
-                        <strong>Key Learning Objectives:</strong>
-                        <ul>
+                      <div
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          padding: '16px 20px',
+                          marginBottom: '20px'
+                        }}
+                      >
+                        <strong style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#1e293b', display: 'block', marginBottom: '8px' }}>
+                          Key Learning Objectives:
+                        </strong>
+                        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13.5px', color: '#475569', lineHeight: 1.7 }}>
                           {mod.learningObjectives.map((obj, oi) => (
-                            <li key={oi}>{obj}</li>
+                            <li key={oi} style={{ marginBottom: '4px' }}>{obj}</li>
                           ))}
                         </ul>
                       </div>
                     )}
 
                     {/* Lessons inside this module */}
-                    <div className="curriculum-lessons">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {mod.lessons.map((lesson, lesIdx) => {
                         const isLessonDone = Boolean(lesson.done);
                         return (
                           <article
-                            className={`curriculum-lesson ${isLessonDone ? 'is-complete' : ''}`}
                             key={lesson.id || `${mod.id}-les-${lesIdx}`}
+                            style={{
+                              background: isLessonDone ? '#f8fdfa' : '#ffffff',
+                              border: isLessonDone ? '1px solid #86efac' : '1px solid #e2e8f0',
+                              borderRadius: '16px',
+                              padding: '22px 24px',
+                              boxShadow: isLessonDone
+                                ? '0 2px 8px rgba(16, 185, 129, 0.08)'
+                                : '0 2px 8px rgba(15, 23, 42, 0.04)',
+                              transition: 'all 0.2s ease'
+                            }}
                           >
-                            <div className="lesson-header-row">
-                              <div className="lesson-title-group">
-                                <div className="lesson-meta-chips">
-                                  <span className="lesson-pill number">
+                            {/* Header row: Title + Meta vs Completion button */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                gap: '16px',
+                                marginBottom: '14px',
+                                flexWrap: 'wrap'
+                              }}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px', flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span
+                                    style={{
+                                      background: '#eff6ff',
+                                      color: '#1d4ed8',
+                                      padding: '3px 9px',
+                                      borderRadius: '6px',
+                                      fontWeight: 650,
+                                      fontSize: '11.5px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center'
+                                    }}
+                                  >
                                     Lesson {modIdx + 1}.{lesIdx + 1}
                                   </span>
-                                  <span className="lesson-pill">
-                                    <Clock3 size={11} />
+                                  <span
+                                    style={{
+                                      background: '#f1f5f9',
+                                      color: '#475569',
+                                      padding: '3px 9px',
+                                      borderRadius: '6px',
+                                      fontSize: '11.5px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Clock3 size={12} />
                                     {lesson.estimatedDuration}
                                   </span>
                                   {isLessonDone && (
-                                    <span className="verified-tag">
-                                      <Check size={11} style={{ display: 'inline', marginRight: '2px' }} />
-                                      Done
+                                    <span
+                                      style={{
+                                        background: '#ecfdf5',
+                                        color: '#059669',
+                                        border: '1px solid #a7f3d0',
+                                        padding: '3px 8px',
+                                        borderRadius: '6px',
+                                        fontSize: '11.5px',
+                                        fontWeight: 650,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '3px'
+                                      }}
+                                    >
+                                      <Check size={12} /> Done
                                     </span>
                                   )}
                                 </div>
-                                <h4>{lesson.title}</h4>
+                                <h4 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.3px', lineHeight: 1.4 }}>
+                                  {lesson.title}
+                                </h4>
                               </div>
 
+                              {/* Interactive Completion Toggle Button */}
                               <button
                                 type="button"
-                                className={`lesson-complete-toggle ${isLessonDone ? 'completed' : 'pending'}`}
                                 onClick={() => toggleLesson(mod.id, lesson.id)}
                                 aria-label={isLessonDone ? `Mark lesson ${lesson.title} as incomplete` : `Mark lesson ${lesson.title} as complete`}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '9px 18px',
+                                  borderRadius: '10px',
+                                  fontSize: '13px',
+                                  fontWeight: 650,
+                                  cursor: 'pointer',
+                                  flexShrink: 0,
+                                  transition: 'all 0.18s ease',
+                                  background: isLessonDone ? '#10b981' : '#ffffff',
+                                  color: isLessonDone ? '#ffffff' : '#334155',
+                                  border: isLessonDone ? '1px solid #059669' : '1px solid #cbd5e1',
+                                  boxShadow: isLessonDone
+                                    ? '0 2px 8px rgba(16, 185, 129, 0.28)'
+                                    : '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                }}
                               >
-                                <Check size={14} />
+                                <Check size={15} style={{ strokeWidth: 2.5 }} />
                                 {isLessonDone ? 'Completed' : 'Mark as complete'}
                               </button>
                             </div>
 
-                            <div className="lesson-objective-box">
-                              <strong>Learning Objective</strong>
-                              {lesson.learningObjective}
+                            {/* Learning Objective Box */}
+                            <div
+                              style={{
+                                background: '#f8fafc',
+                                borderLeft: '4px solid #3b82f6',
+                                borderRadius: '0 10px 10px 0',
+                                padding: '12px 16px',
+                                marginBottom: '14px',
+                                fontSize: '13.5px',
+                                lineHeight: 1.6,
+                                color: '#334155'
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.8px',
+                                  color: '#1d4ed8',
+                                  marginBottom: '3px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <Target size={13} /> Learning Objective
+                              </div>
+                              <span style={{ display: 'block' }}>{lesson.learningObjective}</span>
                             </div>
 
                             {/* Verified Learning Resources for this lesson */}
                             {lesson.resources && lesson.resources.length > 0 && (
-                              <div className="lesson-resources-container">
-                                <span className="resource-label">Curated Lesson Material</span>
-                                <div className="lesson-resources-list">
+                              <div style={{ marginTop: '14px', marginBottom: '14px' }}>
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.8px',
+                                    color: '#64748b',
+                                    marginBottom: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <BookOpen size={12} /> Curated Learning Material
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                   {lesson.resources.map((res, ri) => (
                                     <a
                                       key={ri}
                                       href={res.url}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="lesson-resource-row"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '14px',
+                                        padding: '12px 16px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #e2e8f0',
+                                        background: '#ffffff',
+                                        textDecoration: 'none',
+                                        color: 'inherit',
+                                        transition: 'all 0.18s ease'
+                                      }}
                                     >
-                                      <div className="lesson-resource-left">
-                                        <div className={`lesson-resource-icon ${res.resourceType}`}>
-                                          <ResourceIcon type={res.resourceType} />
-                                        </div>
-                                        <div className="lesson-resource-info">
-                                          <strong>{res.title}</strong>
-                                          <small>
-                                            {res.provider} · {res.resourceType.toUpperCase()}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                                        <ResourceIconBadge type={res.resourceType} />
+                                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                          <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 650, lineHeight: 1.4 }}>
+                                            {res.title}
+                                          </strong>
+                                          <small style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                            {res.provider} · <span style={{ fontWeight: 600, color: '#3b82f6' }}>{res.resourceType.toUpperCase()}</span>
                                           </small>
                                         </div>
                                       </div>
 
-                                      <div className="lesson-resource-right">
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                                         {res.verified ? (
-                                          <span className="verified-tag">Verified Resource</span>
+                                          <span
+                                            style={{
+                                              background: '#ecfdf5',
+                                              color: '#059669',
+                                              border: '1px solid #a7f3d0',
+                                              fontSize: '11px',
+                                              fontWeight: 650,
+                                              padding: '3px 8px',
+                                              borderRadius: '6px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '3px'
+                                            }}
+                                          >
+                                            <Check size={11} /> Verified Resource
+                                          </span>
                                         ) : (
-                                          <span className="unverified-tag">Reference Link</span>
+                                          <span
+                                            style={{
+                                              background: '#f8fafc',
+                                              color: '#64748b',
+                                              border: '1px solid #e2e8f0',
+                                              fontSize: '11px',
+                                              padding: '3px 8px',
+                                              borderRadius: '6px'
+                                            }}
+                                          >
+                                            Reference Link
+                                          </span>
                                         )}
-                                        <span className="open-link-cta">
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '12.5px',
+                                            fontWeight: 650,
+                                            color: '#2563eb',
+                                            background: '#eff6ff',
+                                            padding: '6px 12px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #dbeafe'
+                                          }}
+                                        >
                                           Open <ArrowUpRight size={14} />
                                         </span>
                                       </div>
@@ -486,24 +723,68 @@ export default function Learning({
 
                             {/* Hands-on practice task */}
                             {lesson.practiceTask && (
-                              <div className="lesson-practice-card">
-                                <div className="lesson-practice-card-header">
-                                  <Code2 size={14} />
-                                  Practical Exercise
+                              <div
+                                style={{
+                                  background: '#fffbeb',
+                                  border: '1px solid #fef3c7',
+                                  borderLeft: '4px solid #f59e0b',
+                                  borderRadius: '0 10px 10px 0',
+                                  padding: '12px 16px',
+                                  marginTop: '14px',
+                                  fontSize: '13px',
+                                  lineHeight: 1.6,
+                                  color: '#92400e'
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontWeight: 700,
+                                    fontSize: '11px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.8px',
+                                    color: '#b45309',
+                                    marginBottom: '3px'
+                                  }}
+                                >
+                                  <Code2 size={14} /> Practical Exercise
                                 </div>
-                                <p style={{ margin: 0 }}>{lesson.practiceTask}</p>
+                                <p style={{ margin: 0, color: '#78350f', fontSize: '13.5px' }}>{lesson.practiceTask}</p>
                               </div>
                             )}
 
                             {/* Personal Notes */}
-                            <div className="lesson-notes-area">
-                              <details>
-                                <summary>Personal notes &amp; project reflections</summary>
+                            <div style={{ marginTop: '14px' }}>
+                              <details
+                                style={{
+                                  background: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '10px',
+                                  padding: '10px 14px'
+                                }}
+                              >
+                                <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <FileText size={13} /> Personal notes &amp; project reflections
+                                </summary>
                                 <textarea
                                   rows={2}
                                   placeholder="Record key takeaways, implementation roadblocks, or project links..."
                                   value={lesson.notes || ''}
                                   onChange={e => updateLessonNotes(mod.id, lesson.id, e.target.value)}
+                                  style={{
+                                    marginTop: '8px',
+                                    width: '100%',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    padding: '8px 12px',
+                                    fontSize: '13px',
+                                    color: '#1e293b',
+                                    background: '#ffffff',
+                                    resize: 'vertical',
+                                    lineHeight: 1.6
+                                  }}
                                 />
                               </details>
                             </div>
