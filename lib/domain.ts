@@ -396,13 +396,13 @@ export type Plan={
   milestones:Milestone[];
   interviewPrep?:InterviewPrep;
   description?:string;
-  goalType?:'degree'|'specialization'|'skill';
+  goalType?:'degree'|'career'|'specialization'|'skill';
   subject?:string;
   targetOutcome?:string;
   estimatedDuration?:string;
   assessment?:LearningAssessment;
   modules?:CurriculumModule[];
-  source?:'qwen'|'deterministic';
+  source?:'groq'|'qwen'|'deterministic';
   fallbackUsed?:boolean;
 };
 

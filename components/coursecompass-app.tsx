@@ -322,14 +322,44 @@ export default function CourseCompassApp() {
       setBusy(true);
       toast('Generating your personalised learning plan...', { duration: 3000 });
       try {
-        const goalType = profile.journey === 'career' ? 'skill' : (profile.specialization ? 'specialization' : 'degree');
+        const goalLower = goalTitle.toLowerCase();
+        const isCareer = profile.journey === 'career' || Boolean(profile.career_goal && profile.career_goal.toLowerCase() === goalLower);
+        const isDegree = degrees.some(d => d.name.toLowerCase() === goalLower || d.id === profile.goal) || /^BS\s|^Bachelor|^Master|^MS\s|^BE\s/i.test(goalTitle);
+        const goalType: 'degree' | 'career' | 'specialization' | 'skill' = isCareer ? 'career' : (profile.specialization ? 'specialization' : (isDegree ? 'degree' : 'skill'));
+
+        const userSkills = Array.from(new Set([
+          ...(profile.skills || []),
+          ...skillsList,
+          ...(profile.extractedSkills ? profile.extractedSkills.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [])
+        ]));
+
+        let targetSkills: string[] = [];
+        const matchedDeg = degrees.find(d => d.name.toLowerCase() === goalLower || d.id === profile.goal);
+        if (matchedDeg) {
+          targetSkills = matchedDeg.skills;
+        }
+        const missingSkills = targetSkills.filter(s => !userSkills.some(us => us.toLowerCase() === s.toLowerCase()));
+
         const r = await fetch('/api/plans/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             goal: goalTitle,
-            skills: skillsList.slice(0, 8),
-            profile: recommendationProfile(profile),
+            skills: userSkills.slice(0, 15),
+            missingSkills,
+            profile: {
+              ...recommendationProfile(profile),
+              skills: userSkills,
+              interests: profile.interests || [],
+              subjects: profile.subjects || [],
+              stage: profile.stage,
+              qualification: profile.qualification,
+              hours: profile.hours,
+              specialization: profile.specialization || '',
+              career_goal: profile.career_goal || '',
+              experience: profile.experience || '',
+              projects: profile.projects || ''
+            },
             mode: 'curriculum',
             goalType
           })

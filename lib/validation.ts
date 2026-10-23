@@ -5,21 +5,21 @@ export const profileSchema=z.object({name:z.string().trim().max(60),stage:z.enum
 export const jobSchema=z.object({text:z.string().max(15000).default(''),url:z.string().max(500).optional().or(z.literal('')),profile:profileSchema.optional()}).refine(d=>(Boolean(d.url&&d.url.length>0))||(d.text.trim().length>=30),{message:'Paste at least 30 characters of the job description or provide a URL.'});
 export const planSchema=z.object({
   id:z.string().uuid(),
-  title:z.string().max(200),
-  goal:z.string().max(100),
+  title:z.string().max(250),
+  goal:z.string().max(150),
   createdAt:z.string().datetime(),
   hoursPerWeek:z.number().optional(),
   description:z.string().max(5000).optional(),
-  goalType:z.enum(['degree','specialization','skill']).optional(),
-  subject:z.string().max(200).optional(),
-  targetOutcome:z.string().max(1000).optional(),
+  goalType:z.enum(['degree','career','specialization','skill']).optional(),
+  subject:z.string().max(250).optional(),
+  targetOutcome:z.string().max(1500).optional(),
   estimatedDuration:z.string().max(100).optional(),
   assessment:z.object({
     whatYouWillLearn:z.string().max(5000),
     whyIncluded:z.string().max(5000),
     expectedSequence:z.string().max(5000),
     estimatedTotalDuration:z.string().max(200),
-    majorMilestones:z.array(z.string().max(500)).max(20),
+    majorMilestones:z.array(z.string().max(500)).max(30),
     targetOutcome:z.string().max(2000).optional(),
     existingKnowledgeAssessed:z.string().max(2000).optional(),
     skillGapsIdentified:z.array(z.string().max(200)).optional(),
@@ -29,9 +29,9 @@ export const planSchema=z.object({
     id:z.string().max(100),
     title:z.string().max(250),
     description:z.string().max(2000),
-    learningObjectives:z.array(z.string().max(500)).max(20),
+    learningObjectives:z.array(z.string().max(500)).max(25),
     estimatedDuration:z.string().max(100),
-    prerequisites:z.array(z.string().max(500)).max(20),
+    prerequisites:z.array(z.string().max(500)).max(25),
     lessons:z.array(z.object({
       id:z.string().max(100),
       title:z.string().max(250),
@@ -44,13 +44,13 @@ export const planSchema=z.object({
         url:z.string().max(2000),
         resourceType:z.enum(['video','course','documentation','article','exercise']),
         verified:z.boolean().optional()
-      })).max(10),
+      })).max(15),
       practiceTask:z.string().max(2000).optional(),
       done:z.boolean().optional(),
       notes:z.string().max(5000).optional()
     })).max(30)
   })).max(30).optional(),
-  source:z.enum(['qwen','deterministic']).optional(),
+  source:z.enum(['groq','qwen','deterministic']).optional(),
   fallbackUsed:z.boolean().optional(),
   milestones:z.array(z.object({id:z.string().max(60),skill:z.string().max(60),title:z.string().max(200),startLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),structuredLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),practice:z.string(),proveSkill:z.string().optional().default(''),state:z.enum(['Not started','Learning','Practiced','Demonstrated']).optional().default('Not started'),notes:z.string().default(''),evidenceUrl:z.string().default(''),resourceId:z.string().max(100).nullable().optional(),hours:z.number().optional(),done:z.boolean().optional()})),
   interviewPrep:z.object({technical:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),behavioral:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),resumeChecklist:z.array(z.string()),applicationChecklist:z.array(z.string())}).optional()

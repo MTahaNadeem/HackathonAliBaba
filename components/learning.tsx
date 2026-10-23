@@ -261,8 +261,8 @@ export default function Learning({
               <span className="learning-source">
                 <Sparkles size={13} style={{ display: 'inline', marginRight: '5px', verticalAlign: '-1px' }} />
                 {activePlan.assessment?.providerNotice ||
-                  (activePlan.source === 'qwen'
-                    ? 'Personalized by Alibaba Cloud Qwen'
+                  (activePlan.source === 'groq' || activePlan.source === 'qwen'
+                    ? 'Personalized by Groq AI'
                     : 'Deterministic Guided Syllabus')}
               </span>
               <h2>{activePlan.title}</h2>
