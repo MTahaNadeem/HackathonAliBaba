@@ -18,10 +18,12 @@ import {
   Info,
   MapPin,
   RefreshCw,
-  CheckCircle
+  CheckCircle,
+  Coins,
+  BookOpen
 } from 'lucide-react';
-import {degrees, universities as catalogueUniversities, type Degree, type VerificationStatus} from '@/lib/catalogue';
-import {assessUniversity, emptyProfile, rankTopDegrees, type Profile, type Plan} from '@/lib/domain';
+import {degrees, universities as catalogueUniversities, type Degree, type University, type VerificationStatus} from '@/lib/catalogue';
+import {assessUniversity, emptyProfile, rankTopDegrees, rankTopUniversities, type Profile, type Plan} from '@/lib/domain';
 import {Progress} from '@/components/ui/progress';
 
 // ── SVG Radial Progress Ring
@@ -101,14 +103,40 @@ export interface DashboardProps {
   onSignIn?: () => void;
   onStartStudentOnboarding?: () => void;
   onSelectDegree?: (degreeId: string) => void;
+  liveUniversities?: University[];
 }
 
-export default function Dashboard({go, onChat, session, profile = emptyProfile, plan = null, onStartPlan, onSignIn, onStartStudentOnboarding, onSelectDegree}: DashboardProps) {
+export default function Dashboard({
+  go,
+  onChat,
+  session,
+  profile = emptyProfile,
+  plan = null,
+  onStartPlan,
+  onSignIn,
+  onStartStudentOnboarding,
+  onSelectDegree,
+  liveUniversities
+}: DashboardProps) {
   const [showGuide, setShowGuide] = useState(false);
 
-  if (session && !showGuide) {
+  // Personalized view active if signed in OR user has started configuring their student profile
+  const isPersonalized = Boolean(
+    session ||
+    profile.student_knows_degree !== undefined ||
+    profile.goal ||
+    (profile.subjects && profile.subjects.length > 0) ||
+    (profile.interests && profile.interests.length > 0) ||
+    profile.city ||
+    profile.name
+  );
+
+  if (isPersonalized && !showGuide) {
     const goal = degrees.find(d => d.id === profile.goal);
+    const sourceUnis = liveUniversities && liveUniversities.length > 0 ? liveUniversities : catalogueUniversities;
+    const rankedUnis = goal ? rankTopUniversities(sourceUnis, profile, goal.id, 5) : [];
     const topDegrees = rankTopDegrees(profile, 5);
+
     const isMilestoneDone = (m: any) => Boolean(m.done || m.state === 'Demonstrated');
     const completed = plan?.milestones.filter(isMilestoneDone).length ?? 0;
     const total = plan?.milestones.length ?? 0;
@@ -117,7 +145,9 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
     const nextMilestone = plan?.milestones.find(m => !isMilestoneDone(m));
     const displayName = profile.name?.trim();
     const cityFilter = profile.relocate ? null : profile.city || null;
-    const sideUnis = catalogueUniversities
+
+    // Secondary programme finder list (strictly matches chosen direction if selected, or city)
+    const sideUnis = sourceUnis
       .filter(u => {
         if (cityFilter && u.city !== cityFilter) return false;
         if (goal) {
@@ -138,22 +168,333 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
     return (
       <div className="personalized-dashboard" aria-label="Personalized Dashboard">
 
-        {/* Header */}
+        {/* Personalized Header */}
         <div className="page-heading">
           <div>
             <div className="eyebrow">YOUR WORKSPACE</div>
             <h1>{displayName ? `Welcome back, ${displayName}!` : 'Welcome back!'}</h1>
-            <p>Pick up where you left off and take your next step forward.</p>
+            <p>
+              {goal
+                ? `Your target degree path is ${goal.name} (${goal.field}). Below are your verified university recommendations.`
+                : 'Pick up where you left off and take your next step forward.'}
+            </p>
           </div>
-          <div style={{display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap'}}>
-            <span className="catalogue-count">{session.user?.email || 'Account connected'}</span>
-            <button className="button outline" onClick={() => setShowGuide(true)} title="Browse platform exploration guide">
-              <Compass size={16} />Exploration guide
+          <div style={{display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'}}>
+            <span className="catalogue-count">
+              {session?.user?.email || (profile.name ? `${profile.name} · Student` : 'Guest workspace')}
+            </span>
+            {onStartStudentOnboarding && (
+              <button
+                className="button outline"
+                onClick={onStartStudentOnboarding}
+                style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
+                title="Retake student onboarding questionnaire"
+              >
+                <SlidersHorizontal size={14} />Retake questionnaire
+              </button>
+            )}
+            <button
+              className="button outline"
+              onClick={() => setShowGuide(true)}
+              style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
+              title="Browse platform exploration guide"
+            >
+              <Compass size={14} />Exploration guide
             </button>
           </div>
         </div>
 
-        {/* Two-column progress grid */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* PRIMARY FOCUS: CASE A — STUDENT HAS SELECTED A DEGREE               */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {goal && (
+          <section className="dashboard-recommendations-section" aria-labelledby="top-unis-heading">
+            {/* Master Your Degree Entry Point Banner */}
+            <div className="master-degree-banner">
+              <div className="master-degree-info">
+                <span className="subtle-pill" style={{background: 'rgba(59, 130, 246, 0.25)', color: '#93c5fd', border: '1px solid rgba(147, 197, 253, 0.3)', marginBottom: '8px', display: 'inline-flex'}}>
+                  MASTER YOUR DEGREE
+                </span>
+                <h3>
+                  <BookOpen size={19} style={{color: '#60a5fa'}} /> Master Your Degree in {goal.name}
+                </h3>
+                <p>
+                  Bridge campus coursework with high-demand industry skills. Access structured learning roadmaps, verified free resources, and practical portfolio tasks.
+                </p>
+                <div className="master-degree-chips">
+                  {goal.skills.slice(0, 4).map(skill => (
+                    <span key={skill} className="master-degree-chip">{skill}</span>
+                  ))}
+                  <span className="master-degree-chip" style={{background: 'rgba(59, 130, 246, 0.25)', color: '#bfdbfe'}}>
+                    Specialized Roadmap
+                  </span>
+                </div>
+              </div>
+              <div className="master-degree-action">
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onStartPlan ? onStartPlan(goal.name, goal.skills) : go('learning')}
+                  title={`Start or continue learning roadmap for ${goal.name}`}
+                >
+                  {hasPlan ? 'Resume Learning Roadmap' : 'Master Your Degree'} <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* University Recommendations Header */}
+            <div className="dashboard-recommendations-header">
+              <div>
+                <div className="dashboard-recommendations-title">
+                  <GraduationCap size={22} style={{color: '#2563eb'}} />
+                  <h2 id="top-unis-heading">Top Universities for {goal.name}</h2>
+                </div>
+                <p>
+                  Ranked using verified admission rules for your {profile.qualification || 'school'} qualification
+                  {cityFilter ? ` in ${cityFilter}` : ''} and semester budget.
+                </p>
+              </div>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
+                {onStartStudentOnboarding && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    style={{fontSize: '12.5px', color: '#2563eb'}}
+                    onClick={onStartStudentOnboarding}
+                  >
+                    Change degree
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button outline"
+                  style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
+                  onClick={() => go('universities')}
+                >
+                  Explore all in University Finder <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* University Recommendations Grid */}
+            {rankedUnis.length === 0 ? (
+              <div style={{background: '#ffffff', border: '1px dashed #cbd5e1', borderRadius: '16px', padding: '32px 24px', textAlign: 'center'}}>
+                <GraduationCap size={36} style={{color: '#94a3b8', margin: '0 auto 12px', display: 'block'}} />
+                <h3 style={{fontSize: '16px', fontWeight: 700, color: 'var(--midnight)', margin: '0 0 6px'}}>
+                  No direct university match found {cityFilter ? `in ${cityFilter}` : ''}
+                </h3>
+                <p style={{fontSize: '13.5px', color: 'var(--secondary)', maxWidth: '480px', margin: '0 auto 18px', lineHeight: 1.5}}>
+                  No verified Pakistani institutions offering {goal.name} were found matching your current city filter. You can allow relocation or explore other campus locations.
+                </p>
+                <div style={{display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap'}}>
+                  <button className="button dark" onClick={() => go('universities')}>
+                    Browse all campuses in University Finder <ArrowRight size={14} />
+                  </button>
+                  <button className="button outline" onClick={() => go('profile')}>
+                    Update city / budget
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="uni-rec-grid">
+                {rankedUnis.map(item => {
+                  const u = item.university;
+                  const a = item.assessment;
+                  const fee = item.tuitionDisplay;
+
+                  return (
+                    <article key={u.id} className="uni-rec-card">
+                      <div className="uni-rec-card-header">
+                        <div className="uni-rec-identity">
+                          <div className="uni-rec-logo">{u.short}</div>
+                          <div className="uni-rec-names">
+                            <h3 className="uni-rec-name">{u.name}</h3>
+                            <span className="uni-rec-city"><MapPin size={11} />{u.city}</span>
+                          </div>
+                        </div>
+                        <StatusPill status={u.verificationStatus} />
+                      </div>
+
+                      <span className="uni-rec-programme">{u.programme}</span>
+
+                      <div className="uni-rec-badges-row">
+                        {a.status === 'Academic minimum met' && (
+                          <span className="eligibility-pill met"><Check size={11} /> Academic minimum met</span>
+                        )}
+                        {a.status === 'Subject route needs review' && (
+                          <span className="eligibility-pill review"><AlertCircle size={11} /> Subject route review</span>
+                        )}
+                        {a.status === 'Check current admissions' && (
+                          <span className="eligibility-pill check"><HelpCircle size={11} /> Check current admissions</span>
+                        )}
+                        {a.status === 'Below published minimum' && (
+                          <span className="eligibility-pill below"><AlertCircle size={11} /> Below published minimum</span>
+                        )}
+
+                        <span className={`db-uni-budget ${a.budget === 'Within semester budget' ? 'budget-ok' : (a.budget === 'Add your budget' || a.budget === 'Costs need checking') ? 'budget-neutral' : 'budget-high'}`}>
+                          {a.budget}
+                        </span>
+
+                        <span className="uni-tuition-pill" title="Verified semester tuition">
+                          <Coins size={12} style={{color: '#64748b'}} />
+                          {fee.tuition}
+                        </span>
+                      </div>
+
+                      <ul className="uni-rec-reasons" aria-label="Why this university matches">
+                        {item.matchReasons.map((reason, idx) => (
+                          <li key={idx}>
+                            <Check size={12} />
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                        {a.detail && (
+                          <li>
+                            <Info size={12} style={{color: '#3b82f6'}} />
+                            <span>{a.detail}</span>
+                          </li>
+                        )}
+                      </ul>
+
+                      <div className="uni-rec-actions">
+                        <button
+                          type="button"
+                          className="button dark"
+                          onClick={() => go('universities')}
+                          title={`View ${u.name} programme details and admission criteria`}
+                        >
+                          View Campus Details <ArrowUpRight size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="button outline"
+                          onClick={() => go('universities')}
+                          title="Compare options in University Finder"
+                        >
+                          Compare
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* PRIMARY FOCUS: CASE B — STUDENT HAS NOT SELECTED A DEGREE          */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {!goal && topDegrees.length > 0 && (
+          <section className="dashboard-recommendations-section" aria-labelledby="top-degrees-heading">
+            <div className="dashboard-recommendations-header">
+              <div>
+                <div className="dashboard-recommendations-title">
+                  <Sparkles size={22} style={{color: '#2563eb'}} />
+                  <h2 id="top-degrees-heading">Top 5 Degree Paths for You</h2>
+                </div>
+                <p>
+                  Deterministic match estimates based on your high-school subjects and interests. Select any degree to explore eligible Pakistani universities.
+                </p>
+              </div>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>
+                {onStartStudentOnboarding && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    style={{fontSize: '12.5px', color: '#2563eb'}}
+                    onClick={onStartStudentOnboarding}
+                  >
+                    Retake questionnaire
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button outline"
+                  style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
+                  onClick={() => go('explore')}
+                >
+                  Explore all 33 degrees <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Preliminary notice if student hasn't entered subjects or interests */}
+            {topDegrees[0]?.isPreliminary && (
+              <div className="preliminary-banner">
+                <div className="preliminary-banner-text">
+                  <AlertCircle size={16} />
+                  <span>
+                    <strong>Preliminary recommendations:</strong> We are displaying general disciplines. Complete your subjects and interests to see accurate match percentages.
+                  </span>
+                </div>
+                {onStartStudentOnboarding && (
+                  <button
+                    type="button"
+                    className="button outline"
+                    style={{minHeight: '30px', padding: '4px 10px', fontSize: '12px'}}
+                    onClick={onStartStudentOnboarding}
+                  >
+                    Answer questionnaire <ArrowRight size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="degree-rec-grid">
+              {topDegrees.map(rec => {
+                const isSelected = profile.goal === rec.degree.id;
+                return (
+                  <article key={rec.degree.id} className="degree-rec-card">
+                    <div className="degree-rec-header">
+                      <span className="degree-rec-field">{rec.degree.field}</span>
+                      <span className={`degree-score-pill ${rec.score >= 70 ? 'high' : ''}`}>
+                        {rec.score}% Match
+                      </span>
+                    </div>
+                    <h3>{rec.degree.name}</h3>
+                    <p className="degree-rec-tagline">{rec.degree.tagline}</p>
+
+                    {/* Connected capabilities and skills */}
+                    <div className="degree-skills-chips" aria-label="Key skills in this degree">
+                      {rec.degree.skills.slice(0, 4).map(skill => (
+                        <span key={skill} className="degree-skill-chip">{skill}</span>
+                      ))}
+                    </div>
+
+                    <ul className="degree-rec-reasons">
+                      {rec.reasons.map((r, i) => (
+                        <li key={i}>
+                          <Check size={13} />
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      type="button"
+                      className={`button ${isSelected ? 'mint' : 'dark'}`}
+                      onClick={() => {
+                        if (onSelectDegree) {
+                          onSelectDegree(rec.degree.id);
+                        } else {
+                          go('universities');
+                        }
+                      }}
+                      title={`Select ${rec.degree.name} and explore eligible campuses`}
+                    >
+                      {isSelected ? 'Degree Selected · View Campuses' : 'Select Degree'} <ArrowRight size={14} />
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* SECONDARY: ROADMAP PROGRESS & PROGRAMME FINDER                      */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
         <div className="db-progress-grid">
 
           {/* LEFT: Roadmap progress ring card */}
@@ -227,7 +568,7 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
             </div>
           </section>
 
-          {/* RIGHT: University list card */}
+          {/* RIGHT: Programme finder card */}
           <section className="db-uni-card form-section" aria-labelledby="uni-list-heading">
             <div className="form-section-heading">
               <span>02</span>
@@ -278,83 +619,6 @@ export default function Dashboard({go, onChat, session, profile = emptyProfile, 
             <button className="button outline" style={{width: '100%', marginTop: '16px'}} onClick={() => go('universities')}>View all universities <ArrowUpRight size={16} /></button>
           </section>
         </div>
-
-        {/* Top 5 Personalized Degree Paths */}
-        {topDegrees.length > 0 && (
-          <section className="form-section top-degrees-section" aria-labelledby="top-degrees-heading" style={{marginTop: '24px'}}>
-            <div className="form-section-heading">
-              <span><Sparkles size={18} style={{color: '#2563eb'}} /></span>
-              <div style={{flex: 1}}>
-                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px'}}>
-                  <h2 id="top-degrees-heading">Top 5 Degree Paths for You</h2>
-                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
-                    {onStartStudentOnboarding && (
-                      <button
-                        type="button"
-                        className="text-button"
-                        style={{fontSize: '12.5px', color: '#2563eb'}}
-                        onClick={onStartStudentOnboarding}
-                      >
-                        Retake questionnaire
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="button outline"
-                      style={{minHeight: '34px', padding: '6px 12px', fontSize: '12.5px'}}
-                      onClick={() => go('explore')}
-                    >
-                      Explore all 33 degrees <ArrowRight size={13} />
-                    </button>
-                  </div>
-                </div>
-                <p>
-                  Deterministic match estimates based on your high-school subjects and interests. Select any degree to explore eligible Pakistani universities.
-                </p>
-              </div>
-            </div>
-
-            <div className="degree-rec-grid">
-              {topDegrees.map(rec => {
-                const isSelected = profile.goal === rec.degree.id;
-                return (
-                  <article key={rec.degree.id} className="degree-rec-card">
-                    <div className="degree-rec-header">
-                      <span className="degree-rec-field">{rec.degree.field}</span>
-                      <span className={`degree-score-pill ${rec.score >= 70 ? 'high' : ''}`}>
-                        {rec.score}% Match
-                      </span>
-                    </div>
-                    <h3>{rec.degree.name}</h3>
-                    <p className="degree-rec-tagline">{rec.degree.tagline}</p>
-                    <ul className="degree-rec-reasons">
-                      {rec.reasons.map((r, i) => (
-                        <li key={i}>
-                          <Check size={13} />
-                          <span>{r}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      className={`button ${isSelected ? 'mint' : 'dark'}`}
-                      onClick={() => {
-                        if (onSelectDegree) {
-                          onSelectDegree(rec.degree.id);
-                        } else {
-                          go('universities');
-                        }
-                      }}
-                      title={`Select ${rec.degree.name} and explore eligible campuses`}
-                    >
-                      {isSelected ? 'Degree Selected · View Campuses' : 'Select Degree'} <ArrowRight size={14} />
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
         {/* Up-next milestone */}
         {nextMilestone && (

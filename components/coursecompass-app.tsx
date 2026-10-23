@@ -656,6 +656,7 @@ export default function CourseCompassApp() {
               onSignIn={() => setAuthOpen(true)}
               onStartStudentOnboarding={() => setStudentOnboardingOpen(true)}
               onSelectDegree={handleSelectDegree}
+              liveUniversities={catalogueData?.universities}
             />
           )}
           {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} />}
@@ -728,7 +729,7 @@ export default function CourseCompassApp() {
         onSaveProfile={saveProfile}
         onDegreeSelectedAndFindUnis={(degId, updated) => {
           setProfile(updated);
-          go('universities');
+          go('dashboard');
         }}
         onCompletedExploreDegrees={updated => {
           setProfile(updated);
