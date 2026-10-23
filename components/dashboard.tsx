@@ -1,3 +1,4 @@
+import type {RecommendationResult} from '@/lib/ai/recommendation-engine';
 import {useState} from 'react';
 import type {Session} from '@supabase/supabase-js';
 import {
@@ -106,6 +107,7 @@ export interface DashboardProps {
   onStartStudentOnboarding?: () => void;
   onSelectDegree?: (degreeId: string) => void;
   liveUniversities?: University[];
+  recommendations?: RecommendationResult;
 }
 
 export default function Dashboard({
@@ -118,7 +120,8 @@ export default function Dashboard({
   onSignIn,
   onStartStudentOnboarding,
   onSelectDegree,
-  liveUniversities
+  liveUniversities,
+  recommendations
 }: DashboardProps) {
   const [showGuide, setShowGuide] = useState(false);
   const [compareBaseUni, setCompareBaseUni] = useState<University | null>(null);
@@ -140,7 +143,7 @@ export default function Dashboard({
     const goal = degrees.find(d => d.id === profile.goal);
     const sourceUnis = liveUniversities && liveUniversities.length > 0 ? liveUniversities : catalogueUniversities;
     const rankedUnis = goal ? rankTopUniversities(sourceUnis, profile, goal.id, 5) : [];
-    const topDegrees = rankTopDegrees(profile, 5);
+    const topDegrees = recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations.slice(0, 5) : rankTopDegrees(profile, 5);
 
     const isMilestoneDone = (m: any) => Boolean(m.done || m.state === 'Demonstrated');
     const completed = plan?.milestones.filter(isMilestoneDone).length ?? 0;
@@ -430,7 +433,7 @@ export default function Dashboard({
                   <h2 id="top-degrees-heading">Top 5 Degree Paths for You</h2>
                 </div>
                 <p>
-                  Deterministic match estimates based on your high-school subjects and interests. Select any degree to explore eligible Pakistani universities.
+                  {recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? 'Qwen-personalized suggestions with baseline-weighted match estimates, not admission or success probabilities.' : 'Deterministic match estimates based on your high-school subjects and interests.'} Select any degree to explore eligible Pakistani universities.
                 </p>
               </div>
               <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>

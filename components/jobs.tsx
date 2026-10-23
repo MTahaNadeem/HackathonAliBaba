@@ -1,5 +1,6 @@
 'use client';
 import {useState} from 'react';
+import type {RecommendationResult} from '@/lib/ai/recommendation-engine';
 import {ArrowRight,Search,MapPin,BriefcaseBusiness,Check,ArrowUpRight,FileText,LoaderCircle,Link,Sparkles} from 'lucide-react';
 import {roles,degrees} from '@/lib/catalogue';
 import {type Profile} from '@/lib/domain';
@@ -8,9 +9,9 @@ import {Empty} from './fields';
 type Gap = { skill: string, status: 'Demonstrated'|'Improve'|'Learn Next', evidence: string, optional: boolean, importance: string };
 type AnalysisResult = { title: string, company: string, gaps: Gap[], formal: string[], method: string };
 
-export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:string,skills:string[])=>void}) {
+export default function Jobs({profile,onPlan,recommendations}:{profile:Profile;recommendations?:RecommendationResult;onPlan:(goal:string,skills:string[])=>void}) {
   const goalDegree = degrees.find(d => d.id === profile.goal);
-  const [prioritizePersonalized, setPrioritizePersonalized] = useState(Boolean(goalDegree));
+  const [prioritizePersonalized, setPrioritizePersonalized] = useState(Boolean(goalDegree) || profile.journey === 'career');
   const [text,setText] = useState('');
   const [url,setUrl] = useState('');
   const [query,setQuery] = useState('');
@@ -40,9 +41,11 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
     }
   }
 
-  const filtered = roles
+  const personalizedRoles = prioritizePersonalized && recommendations?.source === 'qwen' && recommendations.kind === 'careers' ? recommendations.careers : undefined;
+  const filtered = (personalizedRoles || roles)
     .filter(r => `${r.title} ${r.city} ${r.description}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => {
+      if (personalizedRoles) return 0;
       if (prioritizePersonalized && goalDegree) {
         const aExact = a.degreeId === goalDegree.id;
         const bExact = b.degreeId === goalDegree.id;
@@ -154,6 +157,7 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
               </button>
             </div>
           )}
+          {personalizedRoles && <p className="small-text muted">Qwen-personalized role suggestions; skill matches are self-reported, not verified competence.</p>}
           <div className="role-list">
             {filtered.map(r => (
               <button key={r.id} className={`role-card ${title === r.title ? 'chosen' : ''}`} onClick={() => { setTitle(r.title); setText(r.description); setUrl(''); setResult(null); }}>
@@ -162,6 +166,15 @@ export default function Jobs({profile,onPlan}:{profile:Profile;onPlan:(goal:stri
                   <strong>{r.title}</strong>
                   <span>{degrees.find(d => d.id === r.degreeId)?.field}</span>
                   <small><MapPin size={12}/>{r.city} · Example brief</small>
+                  {personalizedRoles && (() => {
+                    const detail = personalizedRoles.find(item => item.id === r.id);
+                    return detail ? <>
+                      <small>{detail.explanation}</small>
+                      <small>Self-reported: {detail.matchedSkills.join(', ') || 'None'} · Needs evidence: {detail.missingSkills.join(', ') || 'None'}</small>
+                      {detail.uncertainSkills.length > 0 && <small>CV-mentioned; confirm: {detail.uncertainSkills.join(', ')}</small>}
+                      <small>{detail.nextAction}</small>
+                    </> : null;
+                  })()}
                 </div>
                 <ArrowUpRight size={17}/>
               </button>

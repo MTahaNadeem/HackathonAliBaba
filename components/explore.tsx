@@ -1,5 +1,6 @@
 'use client';
 import {useState} from 'react';
+import type {RecommendationResult} from '@/lib/ai/recommendation-engine';
 import {
   ArrowUpRight,
   ArrowRight,
@@ -19,11 +20,12 @@ import {CheckField, Empty} from './fields';
 
 interface ExploreProps {
   profile: Profile;
+  recommendations?: RecommendationResult;
   onGoal: (d: Degree) => void;
   go?: (id: string) => void;
 }
 
-export default function Explore({profile, onGoal, go}: ExploreProps) {
+export default function Explore({profile, onGoal, go, recommendations}: ExploreProps) {
   const goalDegree = degrees.find(d => d.id === profile.goal);
   const [prioritizePersonalized, setPrioritizePersonalized] = useState(Boolean(goalDegree));
   const [query, setQuery] = useState('');
@@ -32,7 +34,7 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
   const [compare, setCompare] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
 
-  const rankedRecs = rankTopDegrees(profile, 33);
+  const rankedRecs = recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations : rankTopDegrees(profile, 33);
   const scoreMap = new Map(rankedRecs.map(r => [r.degree.id, r.score]));
 
   const getScore = (d: Degree) => {
@@ -57,7 +59,7 @@ export default function Explore({profile, onGoal, go}: ExploreProps) {
     return 50;
   };
 
-  const list = recommend(profile)
+  const list = (recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.recommendations : recommend(profile))
     .filter(
       d =>
         (field === 'All fields' || d.field === field) &&
