@@ -1,4 +1,5 @@
 // Server entry points only. Never import this module from a client component.
+import process from 'node:process';
 import { z } from 'zod';
 
 const endpoints = {
@@ -16,14 +17,16 @@ export function qwenConfig(env: Readonly<Record<string, string | undefined>> = p
   const region = env.QWEN_REGION || 'ap-southeast-1';
   if (!(region in endpoints)) throw new QwenFailure('configuration');
   const model = env.QWEN_MODEL || 'qwen-plus';
-  if (!/^qwen-[a-zA-Z0-9.-]+$/.test(model)) throw new QwenFailure('configuration');
+  if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new QwenFailure('configuration');
   return { endpoint: endpoints[region as keyof typeof endpoints], model, apiKey: env.DASHSCOPE_API_KEY };
 }
 
-const envelope = z.object({ choices: z.array(z.object({
-  finish_reason: z.literal('stop'),
-  message: z.object({ content: z.string().min(1).max(50000) }),
-})).length(1) });
+const envelope = z.object({
+  choices: z.array(z.object({
+    finish_reason: z.literal('stop'),
+    message: z.object({ content: z.string().min(1).max(50000) }),
+  })).min(1)
+});
 
 export function createQwenRequest(options: {
   env?: Readonly<Record<string, string | undefined>>; fetcher?: typeof fetch; timeoutMs?: number;
@@ -43,16 +46,22 @@ export function createQwenRequest(options: {
         const response = await (options.fetcher ?? fetch)(config.endpoint, {
           method: 'POST', redirect: 'error', signal: controller.signal,
           headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: config.model, messages: [
-            { role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) },
-          ], response_format: { type: 'json_object' }, enable_thinking: false, temperature: 0.2, max_tokens: 4000 }),
+          body: JSON.stringify({
+            model: config.model, messages: [
+              { role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) },
+            ], response_format: { type: 'json_object' }, enable_thinking: false, temperature: 0.2, max_tokens: 4000
+          }),
         });
         if (!response.ok) throw new QwenFailure(response.status === 429 ? 'rate_limit' : 'provider');
         const raw = await response.text();
         if (raw.length > 100000) throw new QwenFailure('invalid_output');
         try {
           const parsed = envelope.parse(JSON.parse(raw));
-          return JSON.parse(parsed.choices[0].message.content) as unknown;
+          let content = parsed.choices[0].message.content.trim();
+          if (content.startsWith('```')) {
+            content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          }
+          return JSON.parse(content) as unknown;
         } catch { throw new QwenFailure('invalid_output'); }
       })()]);
     } catch (error) {

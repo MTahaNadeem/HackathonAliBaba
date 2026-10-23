@@ -6,6 +6,7 @@ import {type SupabaseClient} from '@supabase/supabase-js';
 import {getSupabaseBrowserClient} from '@/lib/supabase/client';
 import {Route} from 'lucide-react';
 import AuthPanel, {AuthSymbol, authCopy} from './auth-panel';
+import {friendlyAuthError} from '@/lib/auth';
 
 export default function AuthReset() {
   const [client, setClient] = useState<SupabaseClient | null>(null);
@@ -15,8 +16,32 @@ export default function AuthReset() {
 
   useEffect(() => {
     let alive = true;
+    let subscription: {unsubscribe: () => void} | undefined;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    const hashParams = new URLSearchParams(rawHash);
+
+    const errorDesc =
+      searchParams.get('error_description') ||
+      hashParams.get('error_description') ||
+      searchParams.get('error') ||
+      hashParams.get('error');
+
+    if (errorDesc) {
+      queueMicrotask(() => {
+        if (!alive) return;
+        setError(friendlyAuthError(new Error(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))));
+        setReady(true);
+      });
+      return;
+    }
+
     fetch('/api/config')
-      .then(r => r.json() as Promise<{authConfigured: boolean; supabaseUrl: string; supabaseKey: string}>)
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load configuration');
+        return r.json() as Promise<{authConfigured: boolean; supabaseUrl: string; supabaseKey: string}>;
+      })
       .then(async c => {
         if (!alive) return;
         if (!c.authConfigured) {
@@ -31,16 +56,49 @@ export default function AuthReset() {
           return;
         }
         setClient(sb);
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
+
+        const {data: authListener} = sb.auth.onAuthStateChange((_event, session) => {
+          if (!alive) return;
+          if (session) {
+            setError('');
+            setReady(true);
+          }
+        });
+        subscription = authListener.subscription;
+
+        const code = searchParams.get('code');
         if (code) {
+          const {data: existing} = await sb.auth.getSession();
+          if (existing?.session) {
+            if (alive) {
+              setError('');
+              setReady(true);
+            }
+            return;
+          }
+
           const {error: exchangeError} = await sb.auth.exchangeCodeForSession(code);
-          if (exchangeError) setError(exchangeError.message);
+          if (!alive) return;
+          if (exchangeError) {
+            const {data: retrySession} = await sb.auth.getSession();
+            if (!retrySession?.session) {
+              setError(friendlyAuthError(exchangeError));
+            } else {
+              setError('');
+            }
+          } else {
+            setError('');
+          }
         } else {
           const {data} = await sb.auth.getSession();
-          if (!data.session) setError('This reset link is missing or has expired. Request a new one from Sign in.');
+          if (!alive) return;
+          if (!data?.session) {
+            setError('This reset link is missing or has expired. Request a new one from Sign in.');
+          } else {
+            setError('');
+          }
         }
-        setReady(true);
+        if (alive) setReady(true);
       })
       .catch(() => {
         if (alive) {
@@ -48,8 +106,10 @@ export default function AuthReset() {
           setReady(true);
         }
       });
+
     return () => {
       alive = false;
+      subscription?.unsubscribe();
     };
   }, []);
 
