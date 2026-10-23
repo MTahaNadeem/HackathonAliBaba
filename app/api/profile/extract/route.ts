@@ -29,7 +29,6 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     throw new ApiError(400, 'Could not read text from the PDF file. Please ensure it contains selectable text, or paste your resume text directly.');
   }
 }
-<<<<<<< Updated upstream
 
 function heuristicExtract(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -72,8 +71,7 @@ function heuristicExtract(text: string) {
     links: links || ""
   };
 }
-=======
->>>>>>> Stashed changes
+
 
 export async function POST(req: Request) {
   try {

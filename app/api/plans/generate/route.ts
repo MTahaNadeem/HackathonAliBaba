@@ -76,21 +76,13 @@ Output in strict JSON format.`;
 
       const result = await callGemini(systemPrompt, 'Generate the plan now.', schema);
       
-<<<<<<< Updated upstream
       if (result && Array.isArray((result as any).milestones) && (result as any).milestones.length > 0) {
-=======
-      if (result && Array.isArray(result.milestones) && result.milestones.length > 0) {
->>>>>>> Stashed changes
         const plan: Plan = {
           id: crypto.randomUUID(),
           title: `Path to ${goal}`,
           goal,
           createdAt: new Date().toISOString(),
-<<<<<<< Updated upstream
           milestones: (result as any).milestones.map((m: any) => ({
-=======
-          milestones: result.milestones.map((m: any) => ({
->>>>>>> Stashed changes
             id: crypto.randomUUID(),
             skill: m.skill,
             title: m.title,
@@ -102,31 +94,17 @@ Output in strict JSON format.`;
             notes: '',
             evidenceUrl: ''
           })),
-<<<<<<< Updated upstream
           interviewPrep: (result as any).interviewPrep
-=======
-          interviewPrep: result.interviewPrep
->>>>>>> Stashed changes
         };
 
         return Response.json(plan);
       }
-<<<<<<< Updated upstream
       throw new Error('Invalid AI response structure');
     } catch (aiErr) {
-      console.warn('Gemini plan generation unavailable or failed; using deterministic fallback plan:', aiErr);
-      const fallbackPlan = createPlan(goal, skills, 5);
+      console.warn('AI plan generation failed or timed out, using enriched deterministic generator:', aiErr);
+      const fallbackPlan = createPlan(goal, skills, 10);
       return Response.json(fallbackPlan);
     }
-=======
-    } catch (aiErr) {
-      console.warn('AI plan generation failed or timed out, using enriched deterministic generator:', aiErr);
-    }
-    
-    // Graceful fallback to enriched plan generator
-    const fallbackPlan = createPlan(goal, skills, 10);
-    return Response.json(fallbackPlan);
->>>>>>> Stashed changes
   } catch (e) {
     return failure(e);
   }
