@@ -16,14 +16,14 @@ export function qwenConfig(env: Readonly<Record<string, string | undefined>> = p
   const region = env.QWEN_REGION || 'ap-southeast-1';
   if (!(region in endpoints)) throw new QwenFailure('configuration');
   const model = env.QWEN_MODEL || 'qwen-plus';
-  if (!/^qwen-[a-zA-Z0-9.-]+$/.test(model)) throw new QwenFailure('configuration');
+  if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new QwenFailure('configuration');
   return { endpoint: endpoints[region as keyof typeof endpoints], model, apiKey: env.DASHSCOPE_API_KEY };
 }
 
 const envelope = z.object({ choices: z.array(z.object({
   finish_reason: z.literal('stop'),
   message: z.object({ content: z.string().min(1).max(50000) }),
-})).length(1) });
+})).min(1) });
 
 export function createQwenRequest(options: {
   env?: Readonly<Record<string, string | undefined>>; fetcher?: typeof fetch; timeoutMs?: number;
@@ -52,7 +52,11 @@ export function createQwenRequest(options: {
         if (raw.length > 100000) throw new QwenFailure('invalid_output');
         try {
           const parsed = envelope.parse(JSON.parse(raw));
-          return JSON.parse(parsed.choices[0].message.content) as unknown;
+          let content = parsed.choices[0].message.content.trim();
+          if (content.startsWith('```')) {
+            content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          }
+          return JSON.parse(content) as unknown;
         } catch { throw new QwenFailure('invalid_output'); }
       })()]);
     } catch (error) {
