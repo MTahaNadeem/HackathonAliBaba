@@ -1,8 +1,9 @@
 'use client';
 import {useState} from 'react';
-import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw,Sparkles} from 'lucide-react';
+import {Search,MapPin,ArrowUpRight,Info,GraduationCap,SlidersHorizontal,AlertTriangle,Clock,CheckCircle,RefreshCw,Sparkles,Scale} from 'lucide-react';
 import {universities as catalogueUniversities,sourceLinks,degrees,type University,type VerificationStatus} from '@/lib/catalogue';
 import {assessUniversity,calculateUniversityFit,getFeeDisplay,type Profile} from '@/lib/domain';
+import UniversityCompareDialog from '@/components/university-compare-dialog';
 import {Choice,CheckField,Empty} from './fields';
 
 /** Format a last_verified_at ISO string to a human-readable date */
@@ -48,6 +49,9 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   const [city,setCity]=useState(profile.relocate?'All cities':profile.city||'All cities');
   const [query,setQuery]=useState('');
   const [budgetOnly,setBudgetOnly]=useState(false);
+  const [compareBaseUni, setCompareBaseUni] = useState<University | null>(null);
+  const [compareTargetUni, setCompareTargetUni] = useState<University | null>(null);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
 
   const list = source
     .filter(u => {
@@ -122,12 +126,22 @@ export default function Universities({profile,go,liveUniversities,dataSource,las
   {(u.entryTest||u.minEligibility||u.aggregateFormula)&&<div className="university-requirements">{u.entryTest&&<div className="requirement-pill"><span>Entry Test:</span> <strong>{u.entryTest}</strong></div>}{u.minEligibility&&<div className="requirement-pill"><span>Eligibility:</span> <strong>{u.minEligibility}</strong></div>}{u.aggregateFormula&&<div className="requirement-pill"><span>Merit:</span> <strong>{u.aggregateFormula}</strong></div>}</div>}
   <p className="assessment-detail"><Info size={15}/>{a.detail}</p>
   {u.notes&&<div className={`university-notes${vs==='needs_information'?' needs-info-notice':''}`}><Info size={14}/><span>{u.notes}</span></div>}
-  <div className="university-links"><a className="text-button" href={u.url} target="_blank" rel="noreferrer">Official admissions <ArrowUpRight size={16}/></a>{u.feeUrl&&isFeeVerified&&<a className="text-button" href={u.feeUrl} target="_blank" rel="noreferrer">Fee source · {u.feeYear||'Official'}<ArrowUpRight size={16}/></a>}{(vs==='stale'||vs==='needs_information')&&(u.sourceUrl||u.feeUrl)&&<a className="text-button" href={u.sourceUrl||u.feeUrl} target="_blank" rel="noreferrer">Official portal / inquiry <ArrowUpRight size={16}/></a>}</div>
+  <div className="university-links"><a className="text-button" href={u.url} target="_blank" rel="noreferrer">Official admissions <ArrowUpRight size={16}/></a><button type="button" className="text-button" onClick={() => { setCompareBaseUni(u); const candidates = list.filter(other => other.id !== u.id); setCompareTargetUni(candidates[0] || null); setCompareDialogOpen(true); }} style={{cursor: 'pointer'}} title={`Compare ${u.name} with another campus`}><Scale size={15}/> Compare campus</button>{u.feeUrl&&isFeeVerified&&<a className="text-button" href={u.feeUrl} target="_blank" rel="noreferrer">Fee source · {u.feeYear||'Official'}<ArrowUpRight size={16}/></a>}{(vs==='stale'||vs==='needs_information')&&(u.sourceUrl||u.feeUrl)&&<a className="text-button" href={u.sourceUrl||u.feeUrl} target="_blank" rel="noreferrer">Official portal / inquiry <ArrowUpRight size={16}/></a>}</div>
   </div></article>})}
   </div>
 
 
   {!list.length&&<Empty title="No verified matches for these filters" text="Unknown fees are excluded when you ask for confirmed affordability. Broaden your city or turn off the budget filter to investigate more options." action="Reset filters" onAction={()=>{setCity('All cities');setQuery('');setBudgetOnly(false)}}/>}
 
-  <div className="source-strip"><strong>Check before you apply</strong><a href={sourceLinks.ibcc} target="_blank" rel="noreferrer">IBCC equivalence <ArrowUpRight size={14}/></a><a href={sourceLinks.hec} target="_blank" rel="noreferrer">HEC qualification register <ArrowUpRight size={14}/></a><a href={sourceLinks.nustEligibility} target="_blank" rel="noreferrer">NUST eligibility <ArrowUpRight size={14}/></a><a href={sourceLinks.nustMerit} target="_blank" rel="noreferrer">NET formula <ArrowUpRight size={14}/></a>{lastRunAt&&<span className="muted">Data refreshed {fmtVerified(lastRunAt)}</span>}</div></>;
+  <div className="source-strip"><strong>Check before you apply</strong><a href={sourceLinks.ibcc} target="_blank" rel="noreferrer">IBCC equivalence <ArrowUpRight size={14}/></a><a href={sourceLinks.hec} target="_blank" rel="noreferrer">HEC qualification register <ArrowUpRight size={14}/></a><a href={sourceLinks.nustEligibility} target="_blank" rel="noreferrer">NUST eligibility <ArrowUpRight size={14}/></a><a href={sourceLinks.nustMerit} target="_blank" rel="noreferrer">NET formula <ArrowUpRight size={14}/></a>{lastRunAt&&<span className="muted">Data refreshed {fmtVerified(lastRunAt)}</span>}</div>
+  <UniversityCompareDialog
+    open={compareDialogOpen}
+    onOpenChange={setCompareDialogOpen}
+    baseUni={compareBaseUni}
+    targetUni={compareTargetUni}
+    onSelectTargetUni={setCompareTargetUni}
+    availableUnis={list}
+    profile={profile}
+  />
+  </>;
 }

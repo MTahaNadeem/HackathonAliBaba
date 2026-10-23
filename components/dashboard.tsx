@@ -20,11 +20,13 @@ import {
   RefreshCw,
   CheckCircle,
   Coins,
-  BookOpen
+  BookOpen,
+  Scale
 } from 'lucide-react';
 import {degrees, universities as catalogueUniversities, type Degree, type University, type VerificationStatus} from '@/lib/catalogue';
 import {assessUniversity, calculateUniversityFit, emptyProfile, rankTopDegrees, rankTopUniversities, type Profile, type Plan} from '@/lib/domain';
 import {Progress} from '@/components/ui/progress';
+import UniversityCompareDialog from '@/components/university-compare-dialog';
 
 // ── SVG Radial Progress Ring
 function ProgressRing({
@@ -119,6 +121,9 @@ export default function Dashboard({
   liveUniversities
 }: DashboardProps) {
   const [showGuide, setShowGuide] = useState(false);
+  const [compareBaseUni, setCompareBaseUni] = useState<University | null>(null);
+  const [compareTargetUni, setCompareTargetUni] = useState<University | null>(null);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
 
   // Personalized view active if signed in OR user has started configuring their student profile
   const isPersonalized = Boolean(
@@ -377,21 +382,32 @@ export default function Dashboard({
                       </ul>
 
                       <div className="uni-rec-actions">
-                        <button
-                          type="button"
+                        <a
+                          href={u.url}
+                          target="_blank"
+                          rel="noreferrer"
                           className="button dark"
-                          onClick={() => go('universities')}
-                          title={`View ${u.name} programme details and admission criteria`}
+                          title={`Open official admission portal & application form for ${u.name}`}
                         >
                           View Campus Details <ArrowUpRight size={14} />
-                        </button>
+                        </a>
                         <button
                           type="button"
                           className="button outline"
-                          onClick={() => go('universities')}
-                          title="Compare options in University Finder"
+                          onClick={() => {
+                            setCompareBaseUni(u);
+                            const candidates = rankedUnis
+                              .map(r => r.university)
+                              .filter(other => other.id !== u.id);
+                            const fallbackCandidates = sourceUnis
+                              .filter(other => other.id !== u.id && (goal ? other.degreeId === goal.id : true));
+                            const list = candidates.length > 0 ? candidates : fallbackCandidates;
+                            setCompareTargetUni(list[0] || null);
+                            setCompareDialogOpen(true);
+                          }}
+                          title={`Compare ${u.name} with another university`}
                         >
-                          Compare
+                          <Scale size={14} /> Compare
                         </button>
                       </div>
                     </article>
@@ -704,6 +720,17 @@ export default function Dashboard({
           <p>Degrees, skills, or that "what next?" feeling. Let's work through it together.</p>
           <button className="button dark" onClick={onChat} style={{minWidth: '220px'}}>Ask CourseCompass AI <Sparkles size={17} /></button>
         </section>
+
+        {/* Side-by-side University Comparison Dialog */}
+        <UniversityCompareDialog
+          open={compareDialogOpen}
+          onOpenChange={setCompareDialogOpen}
+          baseUni={compareBaseUni}
+          targetUni={compareTargetUni}
+          onSelectTargetUni={setCompareTargetUni}
+          availableUnis={goal ? sourceUnis.filter(u => u.degreeId === goal.id) : sourceUnis}
+          profile={profile}
+        />
       </div>
     );
   }
