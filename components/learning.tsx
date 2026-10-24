@@ -1,4 +1,5 @@
 'use client';
+import {linkedLessonProgress} from '@/lib/job-roadmap';
 import { useState, useMemo } from 'react';
 import {
   BookOpen,
@@ -193,6 +194,8 @@ export default function Learning({
       ...activePlan,
       modules: updatedModules,
       milestones: activePlan.milestones.map((m, idx) => {
+        const linked=linkedLessonProgress(m,updatedModules);
+        if(linked)return linked;
         const correspondingMod = updatedModules[idx % updatedModules.length];
         const isModDone =
           Boolean(correspondingMod && correspondingMod.lessons.length > 0 && correspondingMod.lessons.every(l => l.done));
