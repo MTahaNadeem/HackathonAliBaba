@@ -15,7 +15,29 @@
  * Only an account-owned analysis ID is passed to the website.
  */
 const COMPASS_WEB_APP_URL = 'https://coursecompassai.vercel.app/';
-async function accountMessage(message){const response=await chrome.runtime.sendMessage(message);if(!response?.ok){if(response?.status===401){userSession=null;userProfileData=null;currentAnalysis=null;savedJobsList.innerHTML='';setState('initial');renderAuthState();}throw new Error(response?.error||'Account service unavailable.');}return response.data;}
+async function accountMessage(message){
+  let response;
+  try {
+    response = await chrome.runtime.sendMessage(message);
+  } catch (err) {
+    if (err?.message && err.message.includes('Receiving end does not exist')) {
+      throw new Error('Background service worker is reconnecting. Please reload the extension.');
+    }
+    throw err;
+  }
+  if(!response?.ok){
+    if(response?.status===401){
+      userSession=null;
+      userProfileData=null;
+      currentAnalysis=null;
+      savedJobsList.innerHTML='';
+      setState('initial');
+      renderAuthState();
+    }
+    throw new Error(response?.error||'Account service unavailable.');
+  }
+  return response.data;
+}
 const accountApi=(path,method='GET',body)=>accountMessage({action:'api',path,method,body});
 
 /* ══════════════════════════════════════════════════
@@ -228,7 +250,17 @@ function showContextFallback(msg) {
 ══════════════════════════════════════════════════ */
 
 /** Restore session from chrome.storage on popup open */
-async function restoreSession(){try{userSession=await accountMessage({action:'session'});if(userSession)await fetchProfileFromServer();}catch(e){showLoginError(e.message);}renderAuthState();}
+async function restoreSession(){
+  try{
+    userSession=await accountMessage({action:'session'});
+    if(userSession)await fetchProfileFromServer();
+  }catch(e){
+    if(e?.message && (e.message.includes('expired') || e.message.includes('Sign in'))) {
+      showLoginError('Your session has expired. Sign in again.');
+    }
+  }
+  renderAuthState();
+}
 
 /** Render auth UI state based on whether user is logged in */
 function renderAuthState() {
@@ -411,10 +443,10 @@ async function runAnalysis() {
     await renderResults(analysis, data);
     setState('results');
 
-  } catch {
+  } catch (err) {
     showError(
       'Could not analyze this page',
-      err.message || 'Make sure you are on a readable web page with text content.'
+      err?.message || 'Make sure you are on a readable web page with text content.'
     );
   }
 }

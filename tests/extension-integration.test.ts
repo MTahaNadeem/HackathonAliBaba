@@ -114,6 +114,11 @@ function worker(
   let access = '';
   const chrome = {
     storage: {
+      session: {
+        setAccessLevel: async (x: { accessLevel: string }) => {
+          access = x.accessLevel;
+        },
+      },
       local: {
         setAccessLevel: async (x: { accessLevel: string }) => {
           access = x.accessLevel;

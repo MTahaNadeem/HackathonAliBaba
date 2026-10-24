@@ -1,7 +1,11 @@
 'use strict';
 const APP_ORIGIN='https://coursecompassai.vercel.app';
 let sequence=Promise.resolve();
-const storageReady=chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'});
+const storageReady = (chrome.storage?.session?.setAccessLevel
+  ? chrome.storage.session.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}).catch(()=>{})
+  : (chrome.storage?.local?.setAccessLevel
+    ? chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'}).catch(()=>{})
+    : Promise.resolve()));
 chrome.runtime.onInstalled.addListener(()=>{chrome.action.setBadgeBackgroundColor({color:'#22c55e'});});
 async function auth(input){
  const response=await fetch(`${APP_ORIGIN}/api/extension/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:AbortSignal.timeout(20000)});
@@ -10,7 +14,7 @@ async function auth(input){
 async function saveSession(data){const session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,userId:data.user.id,email:data.user.email};await chrome.storage.local.set({compassSession:session});return session;}
 async function sessionToken(force=false){
  let {compassSession:session}=await chrome.storage.local.get('compassSession');if(!session)throw new Error('Sign in to your CourseCompass account first.');
- if(force||!session.expires_at||session.expires_at*1000<Date.now()+60000){try{session=await saveSession(await auth({action:'refresh',refresh_token:session.refresh_token}));}catch(error){if(error.status===401)await chrome.storage.local.remove('compassSession');throw error;}}
+ if(force||!session.expires_at||session.expires_at*1000<Date.now()+60000){try{session=await saveSession(await auth({action:'refresh',refresh_token:session.refresh_token}));}catch(error){if(error.status===401)await chrome.storage.local.remove('compassSession');throw error;} return session;}
  return session;
 }
 async function handle(message){
@@ -27,6 +31,7 @@ async function handle(message){
  throw new Error('Unsupported operation.');
 }
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
- if(sender.id!==chrome.runtime.id||sender.url!==chrome.runtime.getURL('popup.html'))return;
+ const popupUrl=chrome.runtime.getURL('popup.html');
+ if(sender.id!==chrome.runtime.id||!sender.url||sender.url.split('?')[0].split('#')[0]!==popupUrl)return;
  sequence=sequence.catch(()=>{}).then(()=>handle(message)).then(data=>sendResponse({ok:true,data}),error=>sendResponse({ok:false,error:error.message||'Network request failed. Please retry.',status:error.status}));return true;
 });
