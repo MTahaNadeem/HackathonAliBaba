@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════
    content.js – CourseAI Compass
-   Injected into every page to extract job description text.
+   Injected on request into the active page to extract job description text.
    Returns a structured object via chrome.runtime messaging.
 ════════════════════════════════════════════════════ */
 
@@ -134,7 +134,6 @@ function extractBodyText() {
   // Prioritize known job description containers
   const jobContainerSelectors = [
     // LinkedIn
-    '.job-details-jobs-unified-top-card__primary-description-container',
     '.jobs-description__content',
     '.jobs-box__html-content',
     // Indeed
@@ -148,9 +147,6 @@ function extractBodyText() {
     '[class*="job_description"]',
     '[id*="job-description"]',
     '[id*="jobDescription"]',
-    'article',
-    'main',
-    '[role="main"]',
   ];
 
   let container = null;
@@ -162,9 +158,11 @@ function extractBodyText() {
     }
   }
 
-  // If no specific container found, fall back to the full body minus nav/footer
+  // Structured job data or an explicit manual fallback; never scrape the whole page.
   if (!container) {
-    container = document.body;
+    const description=getSchemaLD()?.description;
+    if(description){const element=document.createElement('div');element.innerHTML=description;return element.textContent.trim().slice(0,10000);}
+    throw new Error('Open an individual job posting with a visible description, or paste the description manually.');
   }
 
   // Build a clean text corpus from the container
@@ -209,5 +207,5 @@ function extractBodyText() {
     return true;
   });
 
-  return unique.join('\n').slice(0, MAX_CHARS);
+  return (unique.length ? unique.join('\n') : container.innerText.trim()).slice(0, MAX_CHARS);
 }

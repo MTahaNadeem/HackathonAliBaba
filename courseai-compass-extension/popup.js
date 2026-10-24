@@ -12,9 +12,11 @@
 
 /**
  * URL pointing to the CourseCompass web app.
- * Missing or selected skills are passed as query parameters.
+ * Only an account-owned analysis ID is passed to the website.
  */
-const COMPASS_WEB_APP_URL = 'http://localhost:3000/';
+const COMPASS_WEB_APP_URL = 'https://coursecompassai.vercel.app/';
+async function accountMessage(message){const response=await chrome.runtime.sendMessage(message);if(!response?.ok){if(response?.status===401){userSession=null;userProfileData=null;currentAnalysis=null;savedJobsList.innerHTML='';setState('initial');renderAuthState();}throw new Error(response?.error||'Account service unavailable.');}return response.data;}
+const accountApi=(path,method='GET',body)=>accountMessage({action:'api',path,method,body});
 
 /* ══════════════════════════════════════════════════
    SKILL DICTIONARY
@@ -52,10 +54,7 @@ const SKILL_DICTIONARY = [
 ];
 
 /* Default student profile — stored in chrome.storage.local */
-const DEFAULT_STUDENT_SKILLS = [
-  'JavaScript', 'HTML', 'CSS', 'Java', 'C++', 'C#',
-  'SQL', 'Git', 'GitHub', 'Supabase', 'Python',
-];
+const DEFAULT_STUDENT_SKILLS = [];
 
 /* ══════════════════════════════════════════════════
    STATE
@@ -63,7 +62,7 @@ const DEFAULT_STUDENT_SKILLS = [
 let currentAnalysis = null;           // Holds the last analysis result
 let userSession = null;               // Holds logged-in user session { access_token, email, userId }
 let userProfileData = null;           // Holds profile data from server { email, profile, plan, skills, learnedSkills, inProgressSkills }
-let selectedSkillsToLearn = new Set(); // Skills selected by user to include in their generated learning plan
+const selectedSkillsToLearn = new Set(); // Skills selected by user to include in their generated learning plan
 
 /* ══════════════════════════════════════════════════
    DOM REFERENCES
@@ -174,11 +173,11 @@ function setView(viewEl, btnEl) {
 navAnalyze.addEventListener('click', () => setView(viewAnalyze, navAnalyze));
 navSaved.addEventListener('click', () => {
   setView(viewSaved, navSaved);
-  renderSavedJobs();
+  renderSavedJobs().catch(error=>showSyncMessage(error.message));
 });
 navProfile.addEventListener('click', () => {
   setView(viewProfile, navProfile);
-  renderProfileSkills();
+  void renderProfileSkills().catch(error=>showSyncMessage(error.message));
   renderAuthState();
 });
 
@@ -213,7 +212,7 @@ async function loadCurrentTabContext() {
     contextInfo.style.display = 'block';
     pageTitle.textContent = truncate(tab.title || url, 60);
 
-  } catch (err) {
+  } catch {
     showContextFallback();
   }
 }
@@ -229,16 +228,7 @@ function showContextFallback(msg) {
 ══════════════════════════════════════════════════ */
 
 /** Restore session from chrome.storage on popup open */
-async function restoreSession() {
-  try {
-    const { compassSession } = await chrome.storage.local.get('compassSession');
-    if (compassSession && compassSession.access_token) {
-      userSession = compassSession;
-      await fetchProfileFromServer();
-      renderAuthState();
-    }
-  } catch {}
-}
+async function restoreSession(){try{userSession=await accountMessage({action:'session'});if(userSession)await fetchProfileFromServer();}catch(e){showLoginError(e.message);}renderAuthState();}
 
 /** Render auth UI state based on whether user is logged in */
 function renderAuthState() {
@@ -271,35 +261,12 @@ if (btnLogin) {
     loginError.style.display = 'none';
 
     try {
-      const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
-      const res = await fetch(`${base}/api/extension/auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed.');
-
-      userSession = {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        email: data.user?.email || email,
-        userId: data.user?.id,
-      };
-      await chrome.storage.local.set({ compassSession: userSession });
-
-      // Fetch profile data after login
+      userSession=await accountMessage({action:'login',email,password});
+      loginPassword.value='';
+      currentAnalysis=null;userProfileData=null;savedJobsList.innerHTML='';setState('initial');
       await fetchProfileFromServer();
-
-      // Merge server skills with local extension skills
-      if (userProfileData && userProfileData.skills && userProfileData.skills.length > 0) {
-        const current = await getStudentSkills();
-        const merged = Array.from(new Set([...current, ...userProfileData.skills]));
-        await chrome.storage.local.set({ studentSkills: merged });
-      }
-
       renderAuthState();
-      renderProfileSkills();
+      void renderProfileSkills().catch(error=>showSyncMessage(error.message));
 
     } catch (e) {
       showLoginError(e.message || 'Could not sign in. Check credentials.');
@@ -325,11 +292,10 @@ if (loginPassword) {
 /** Handle logout */
 if (btnLogout) {
   btnLogout.addEventListener('click', async () => {
-    userSession = null;
-    userProfileData = null;
-    await chrome.storage.local.remove('compassSession');
+    try{await accountMessage({action:'logout'});}catch(e){showSyncMessage(e.message);return;}
+    userSession=null;userProfileData=null;currentAnalysis=null;savedJobsList.innerHTML='';setState('initial');
     renderAuthState();
-    renderProfileSkills();
+    void renderProfileSkills().catch(error=>showSyncMessage(error.message));
   });
 }
 
@@ -339,29 +305,11 @@ function showLoginError(msg) {
 }
 
 /** Fetch user profile + plan from the CourseCompass API */
-async function fetchProfileFromServer() {
-  if (!userSession || !userSession.access_token) return;
-  try {
-    const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
-    const res = await fetch(`${base}/api/extension/profile`, {
-      headers: { 'Authorization': `Bearer ${userSession.access_token}` },
-    });
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Token expired — clear session
-        userSession = null;
-        userProfileData = null;
-        await chrome.storage.local.remove('compassSession');
-      }
-      return;
-    }
-    userProfileData = await res.json();
-  } catch {}
-}
+async function fetchProfileFromServer(){if(!userSession)return;userProfileData=await accountApi('/api/extension/profile');}
 
 /** Render plan progress + what the user has done till now */
 function renderProfileProgress() {
-  if (!userProfileData) return;
+  if (!userProfileData) {planProgressSection.style.display='none';learnedSkillsSection.style.display='none';inProgressSkillsSection.style.display='none';return;}
 
   // Plan progress card
   if (userProfileData.plan) {
@@ -370,7 +318,7 @@ function renderProfileProgress() {
     planTitle.textContent = p.title || 'Your Learning Plan';
     const pct = p.totalMilestones > 0 ? Math.round((p.completedMilestones / p.totalMilestones) * 100) : 0;
     planProgressBar.style.width = `${pct}%`;
-    planProgressLabel.textContent = `${p.completedMilestones} / ${p.totalMilestones} skills completed (${pct}%)`;
+    planProgressLabel.textContent = `${p.completedMilestones} / ${p.totalMilestones} stages completed (${pct}%)`;
   } else {
     planProgressSection.style.display = 'none';
   }
@@ -404,11 +352,11 @@ function renderProfileProgress() {
 btnAnalyze.addEventListener('click', runAnalysis);
 btnRetry.addEventListener('click', () => {
   setState('initial');
-  runAnalysis();
+  void runAnalysis();
 });
 btnReAnalyze.addEventListener('click', () => {
   setState('initial');
-  runAnalysis();
+  void runAnalysis();
 });
 
 async function runAnalysis() {
@@ -448,7 +396,7 @@ async function runAnalysis() {
     }
 
     // Refresh user profile before analysis if logged in
-    if (userSession && userSession.access_token) {
+    if (userSession) {
       await fetchProfileFromServer();
     }
 
@@ -463,7 +411,7 @@ async function runAnalysis() {
     await renderResults(analysis, data);
     setState('results');
 
-  } catch (err) {
+  } catch {
     showError(
       'Could not analyze this page',
       err.message || 'Make sure you are on a readable web page with text content.'
@@ -579,6 +527,7 @@ function extractSkillsFromText(text) {
  * Checks what the user has done till now vs what they need for this job.
  */
 async function analyzeSkills(data) {
+  if(userSession)return accountApi('/api/extension/analyses','POST',{bodyText:data.bodyText,jobTitle:data.jobTitle||data.title||'Target role',company:data.company||'',url:data.url||''});
   const detectedSkills = extractSkillsFromText((data.bodyText || '') + ' ' + (data.title || ''));
   const studentSkills  = await getStudentSkills();
 
@@ -592,9 +541,7 @@ async function analyzeSkills(data) {
       allUserDoneSkills.push(...userProfileData.learnedSkills);
       serverLearnedSkills.push(...userProfileData.learnedSkills);
     }
-    if (Array.isArray(userProfileData.inProgressSkills)) {
-      allUserDoneSkills.push(...userProfileData.inProgressSkills);
-    }
+
   }
 
   const doneLower = [...new Set(allUserDoneSkills)].map(s => s.toLowerCase());
@@ -634,7 +581,9 @@ async function renderResults(analysis, data) {
     else                ringFill.classList.add('low');
   });
 
-  scoreNumber.textContent = `${pct}%`;
+  scoreNumber.textContent = matchPercent===null?'—':`${pct}%`;
+  document.querySelector('.score-disclaimer').textContent=analysis.method ? `${analysis.method}${analysis.formal?.length ? ' Criteria to review: '+analysis.formal.join('; ') : ''}` : 'Guest skill coverage only. Experience and qualifications require separate review.';
+  document.querySelector('.score-label').textContent='Skill fit';
 
   // ── Category label ──────────────────────────────
   let category, categoryColor;
@@ -643,7 +592,7 @@ async function renderResults(analysis, data) {
   else if (pct >= 40) { category = 'Some skill gaps';            categoryColor = '#f59e0b'; }
   else                { category = 'Significant learning needed'; categoryColor = '#ef4444'; }
 
-  scoreCategory.textContent = category;
+  scoreCategory.textContent = matchPercent===null?'No technical requirements detected':category;
   scoreCategory.style.color = categoryColor;
 
   // ── Stats ───────────────────────────────────────
@@ -664,10 +613,10 @@ async function renderResults(analysis, data) {
   chipsHave.innerHTML = '';
   if (matchedSkills.length > 0) {
     sectionHave.style.display = 'block';
-    sectionHaveTitle.textContent = `What you have done till now (${matchedSkills.length})`;
+    sectionHaveTitle.textContent = `Matched skill evidence (${matchedSkills.length})`;
     matchedSkills.forEach(skill => {
       const isDemonstrated = userProfileData?.learnedSkills?.some(s => s.toLowerCase() === skill.toLowerCase());
-      const prefix = isDemonstrated ? '✓ [Learned]' : '✓';
+      const prefix = isDemonstrated ? '✓ [Completion reported]' : '✓ [Self-reported]';
       const chip = createChip(skill, 'have', prefix);
       chip.title = 'You already have this skill. Click to add to target plan if you want to brush up.';
       chip.style.cursor = 'pointer';
@@ -684,7 +633,7 @@ async function renderResults(analysis, data) {
   // Initialize selection with the missing skills for this job
   selectedSkillsToLearn.clear();
   if (missingSkills.length > 0) {
-    missingSkills.slice(0, 8).forEach(s => selectedSkillsToLearn.add(s));
+    missingSkills.forEach(s => selectedSkillsToLearn.add(s));
   } else if (detectedSkills.length > 0) {
     // If no gaps detected, pre-select up to 3 detected skills for review
     detectedSkills.slice(0, 3).forEach(s => selectedSkillsToLearn.add(s));
@@ -724,7 +673,10 @@ function renderSelectableSkillChips(missingSkills, detectedSkills) {
     const chip = document.createElement('span');
     chip.className = `chip-selectable ${isSelected ? 'selected' : 'unselected'}`;
     chip.dataset.skill = skill;
+    const evidence=currentAnalysis?.requirements?.find(requirement=>requirement.skill===skill);
     chip.innerHTML = `${isSelected ? '✓' : '+'} ${escapeHtml(skill)}`;
+    chip.title=evidence ? `${evidence.optional?'Preferred':'Required'}: ${evidence.status}. ${evidence.evidence}` : skill;
+    if(evidence?.status==='CV-inferred; confirm')chip.appendChild(document.createTextNode(' (CV-inferred; confirm)'));
 
     chip.addEventListener('click', () => {
       toggleSkillSelection(skill, chip);
@@ -798,7 +750,7 @@ function updateBuildPlanUI() {
     `;
 
     const preview = skillsArray.slice(0, 4).join(', ') + (count > 4 ? ` (+${count - 4} more)` : '');
-    nextActionText.textContent = `Roadmap will focus on: ${preview}. Click below to open CourseCompass and build your customized plan!`;
+    nextActionText.textContent = `New roadmap targets: ${preview}. If this job already has a saved roadmap, it reopens with progress preserved.`;
   } else {
     btnBuildPlan.disabled = true;
     btnBuildPlan.innerHTML = `
@@ -861,22 +813,10 @@ if (btnAddCustomSkill && inputCustomSkill) {
    BUILD LEARNING PLAN BUTTON
    Builds the plan using the EXACT skills chosen by the user.
 ══════════════════════════════════════════════════ */
-btnBuildPlan.addEventListener('click', () => {
-  const chosenSkills = Array.from(selectedSkillsToLearn);
-  if (chosenSkills.length === 0) return;
-
-  const jobTitle = btnBuildPlan.dataset.jobTitle || '';
-  const company  = btnBuildPlan.dataset.company || '';
-
-  const params = new URLSearchParams();
-  params.set('skills', chosenSkills.join(','));
-  if (jobTitle) params.set('goal', jobTitle);
-  if (company)  params.set('company', company);
-  params.set('source', 'extension');
-
-  const base = COMPASS_WEB_APP_URL.replace(/\/$/, '');
-  const url  = `${base}?${params.toString()}`;
-  chrome.tabs.create({ url });
+btnBuildPlan.addEventListener('click',async()=>{
+ if(!userSession){showSyncMessage('Sign in to save this analysis and open your account roadmap.');navProfile.click();return;}
+ if(!currentAnalysis?.id){showSyncMessage('Analyze the job again to save it to your account.');return;}
+ try{await accountApi('/api/extension/analyses','PATCH',{id:currentAnalysis.id,skills:Array.from(selectedSkillsToLearn)});await chrome.tabs.create({url:`${COMPASS_WEB_APP_URL}?analysis=${encodeURIComponent(currentAnalysis.id)}#roadmap`});}catch(error){showError('Roadmap unavailable',error.message);}
 });
 
 /* ══════════════════════════════════════════════════
@@ -884,6 +824,7 @@ btnBuildPlan.addEventListener('click', () => {
 ══════════════════════════════════════════════════ */
 btnSaveJob.addEventListener('click', async () => {
   if (!currentAnalysis) return;
+  if(userSession){showSyncMessage('Analysis saved to your account.');return;}
 
   const job = {
     jobTitle:      currentAnalysis.jobTitle || 'Unknown Role',
@@ -891,11 +832,11 @@ btnSaveJob.addEventListener('click', async () => {
     pageUrl:       currentAnalysis.url      || '',
     matchScore:    currentAnalysis.matchPercent,
     matchedSkills: currentAnalysis.matchedSkills || [],
-    missingSkills: Array.from(selectedSkillsToLearn).length > 0 ? Array.from(selectedSkillsToLearn) : (currentAnalysis.missingSkills || []),
+    missingSkills: selectedSkillsToLearn.size > 0 ? Array.from(selectedSkillsToLearn) : (currentAnalysis.missingSkills || []),
     savedAt:       new Date().toISOString(),
   };
 
-  const { savedJobs = [] } = await chrome.storage.local.get('savedJobs');
+  const savedJobs = userSession ? (await accountApi('/api/extension/analyses')).analyses.map(row=>({...row.data,analysisId:row.id,pageUrl:row.data.url,matchScore:row.data.matchPercent,savedAt:row.updated_at})) : (await chrome.storage.local.get('savedJobs')).savedJobs || [];
   const alreadySaved = savedJobs.some(j => j.pageUrl === job.pageUrl);
   if (!alreadySaved) {
     savedJobs.unshift(job);
@@ -919,7 +860,8 @@ btnSaveJob.addEventListener('click', async () => {
    SAVED JOBS VIEW
 ══════════════════════════════════════════════════ */
 async function renderSavedJobs() {
-  const { savedJobs = [] } = await chrome.storage.local.get('savedJobs');
+  savedJobsList.innerHTML = '';
+  const savedJobs = userSession ? (await accountApi('/api/extension/analyses')).analyses.map(row=>({...row.data,analysisId:row.id,pageUrl:row.data.url,matchScore:row.data.matchPercent,savedAt:row.updated_at})) : (await chrome.storage.local.get('savedJobs')).savedJobs || [];
 
   savedJobsList.innerHTML = '';
 
@@ -966,15 +908,17 @@ async function renderSavedJobs() {
 
     card.addEventListener('click', e => {
       if (e.target.closest('.saved-delete-btn')) return;
-      if (job.pageUrl) chrome.tabs.create({ url: job.pageUrl });
+      if(job.analysisId)chrome.tabs.create({url:`${COMPASS_WEB_APP_URL}?analysis=${job.analysisId}#roadmap`});
+      else if (/^https?:\/\//.test(job.pageUrl)) chrome.tabs.create({ url: job.pageUrl });
     });
 
     card.querySelector('.saved-delete-btn').addEventListener('click', async e => {
       e.stopPropagation();
+      if(userSession&&job.analysisId){try{await accountApi(`/api/extension/analyses?id=${job.analysisId}`,'DELETE');await renderSavedJobs().catch(error=>showSyncMessage(error.message));}catch(error){showSyncMessage(error.message);}return;}
       const { savedJobs: current = [] } = await chrome.storage.local.get('savedJobs');
       current.splice(index, 1);
       await chrome.storage.local.set({ savedJobs: current });
-      renderSavedJobs();
+      renderSavedJobs().catch(error=>showSyncMessage(error.message));
     });
 
     savedJobsList.appendChild(card);
@@ -993,6 +937,7 @@ async function ensureDefaultSkills() {
 }
 
 async function getStudentSkills() {
+  if(userSession)return userProfileData?.skills || [];
   const { studentSkills = DEFAULT_STUDENT_SKILLS } = await chrome.storage.local.get('studentSkills');
   return studentSkills;
 }
@@ -1008,11 +953,12 @@ async function renderProfileSkills() {
       ${escapeHtml(skill)}
       <button class="chip-remove" data-index="${i}" title="Remove">×</button>
     `;
+    if(userSession&&!userProfileData?.manualSkills?.some(s=>s.toLowerCase()===skill.toLowerCase())){chip.querySelector('.chip-remove').disabled=true;chip.querySelector('.chip-remove').title='Edit website profile skills on the website; completed learning is retained.';}
     chip.querySelector('.chip-remove').addEventListener('click', async () => {
       const current = await getStudentSkills();
       current.splice(i, 1);
-      await chrome.storage.local.set({ studentSkills: current });
-      renderProfileSkills();
+      if(userSession){try{await accountApi('/api/extension/profile','PUT',{skill:skills[i],remove:true});await fetchProfileFromServer();}catch(error){showSyncMessage(error.message);return;}}else await chrome.storage.local.set({ studentSkills: current });
+      void renderProfileSkills().catch(error=>showSyncMessage(error.message));
     });
     profileSkillChips.appendChild(chip);
   });
@@ -1028,10 +974,9 @@ btnAddSkill.addEventListener('click', async () => {
     return;
   }
 
-  current.push(raw);
-  await chrome.storage.local.set({ studentSkills: current });
+  if(userSession){try{await accountApi('/api/extension/profile','PUT',{skill:raw});await fetchProfileFromServer();}catch(error){showSyncMessage(error.message);return;}}else{current.push(raw);await chrome.storage.local.set({ studentSkills: current });}
   newSkillInput.value = '';
-  renderProfileSkills();
+  void renderProfileSkills().catch(error=>showSyncMessage(error.message));
 });
 
 newSkillInput.addEventListener('keydown', e => {
@@ -1040,7 +985,7 @@ newSkillInput.addEventListener('keydown', e => {
 
 btnSaveSkills.addEventListener('click', async () => {
   const skills = await getStudentSkills();
-  await chrome.storage.local.set({ studentSkills: skills });
+  if(!userSession)await chrome.storage.local.set({ studentSkills: skills });
   saveConfirmation.classList.add('visible');
   setTimeout(() => saveConfirmation.classList.remove('visible'), 2000);
 });
@@ -1057,10 +1002,10 @@ if (btnSyncSkills) {
         await renderProfileSkills();
         renderAuthState();
       } else {
-        showSyncMessage('No open CourseCompass tab found with skills. Please open CourseCompass first.');
+        showSyncMessage(userSession?'Your account has no reported skills yet. Add skills or complete learning on the website.':'Sign in to sync your CourseCompass account.');
       }
     } catch (e) {
-      showSyncMessage('Sync failed. Please open CourseCompass in your browser.');
+      showSyncMessage(e.message || 'Account sync failed. Please retry.');
     } finally {
       btnSyncSkills.disabled = false;
       btnSyncSkills.innerHTML = `
@@ -1080,36 +1025,7 @@ function showSyncMessage(msg) {
   setTimeout(() => syncConfirmation.classList.remove('visible'), 3000);
 }
 
-async function syncSkillsFromCourseCompass() {
-  // First try API-based sync if logged in
-  if (userSession && userSession.access_token) {
-    try {
-      await fetchProfileFromServer();
-      if (userProfileData && userProfileData.skills && userProfileData.skills.length > 0) {
-        const current = await getStudentSkills();
-        const merged = Array.from(new Set([...current, ...userProfileData.skills]));
-        await chrome.storage.local.set({ studentSkills: merged });
-        return merged;
-      }
-    } catch {}
-  }
-
-  // Fallback: read from open CourseCompass tab
-  const tabs = await chrome.tabs.query({});
-  const appTabs = tabs.filter(t => t.url && (t.url.includes('localhost:3000') || t.url.includes('coursecompass')));
-  for (const tab of appTabs) {
-    try {
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'GET_COURSECOMPASS_SKILLS' });
-      if (response && response.success && Array.isArray(response.skills) && response.skills.length > 0) {
-        const current = await getStudentSkills();
-        const merged = Array.from(new Set([...current, ...response.skills]));
-        await chrome.storage.local.set({ studentSkills: merged });
-        return merged;
-      }
-    } catch {}
-  }
-  return null;
-}
+async function syncSkillsFromCourseCompass(){if(!userSession)return null;await fetchProfileFromServer();renderAuthState();await renderProfileSkills();return userProfileData.skills;}
 
 /* ══════════════════════════════════════════════════
    UI HELPERS & CHIPS
@@ -1147,3 +1063,9 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+$('manualAnalyze').addEventListener('click',async()=>{
+ const text=$('manualJobText').value.trim();if(text.length<30){$('manualError').textContent='Paste at least 30 characters.';return;}
+ $('manualAnalyze').disabled=true;$('manualError').textContent='';
+ try{if(userSession)await fetchProfileFromServer();const data={bodyText:text,jobTitle:'Pasted job description',company:'',url:'',title:'Pasted job description'};const analysis=await analyzeSkills(data);currentAnalysis={...data,...analysis};await renderResults(analysis,data);setState('results');}catch(error){$('manualError').textContent=error.message;}finally{$('manualAnalyze').disabled=false;}
+});

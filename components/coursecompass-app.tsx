@@ -232,7 +232,7 @@ export default function CourseCompassApp() {
     if (!session) {
       setSync('Guest session');
       try {
-        const saved = localStorage.getItem('coursecompass_plan');
+        const saved = localStorage.getItem('coursecompass_guest_plan');
         if (saved) {
           const parsed = planSchema.safeParse(JSON.parse(saved));
           if (parsed.success) {
@@ -245,6 +245,8 @@ export default function CourseCompassApp() {
     let alive = true;
     setSyncing(true);
     setSync('Loading account');
+    setPlan(null);
+    setProfile(emptyProfile);
     const headers = {Authorization: `Bearer ${session.access_token}`};
     Promise.all([fetch('/api/profile', {headers}), fetch('/api/plans', {headers})])
       .then(async ([pr, pl]) => {
@@ -261,7 +263,6 @@ export default function CourseCompassApp() {
           if (checked.success) {
             const enriched = synthesizeCurriculumIfMissing(checked.data);
             setPlan(enriched);
-            try { localStorage.setItem('coursecompass_plan', JSON.stringify(enriched)); } catch {}
           }
         }
         setSync('Account connected');
@@ -316,14 +317,18 @@ export default function CourseCompassApp() {
     }
   }
 
+  const planSaveQueue=useRef<Promise<unknown>>(Promise.resolve());
   async function updatePlan(p: Plan) {
     const enriched = synthesizeCurriculumIfMissing(p);
     setPlan(enriched);
     try {
-      localStorage.setItem('coursecompass_plan', JSON.stringify(enriched));
+      if(!sessionRef.current)localStorage.setItem('coursecompass_guest_plan', JSON.stringify(enriched));
     } catch {}
     try {
-      const saved = await persist('/api/plans', enriched);
+      const owner=sessionRef.current?.user.id;
+      const pending=planSaveQueue.current.catch(()=>{}).then(()=>{if(sessionRef.current?.user.id!==owner)throw new Error('Account changed before the plan could be saved.');return persist('/api/plans',enriched);});
+      planSaveQueue.current=pending;
+      const saved=await pending;
       setSync(saved ? 'Saved to account' : 'Guest session');
       if (saved) toast.success('Learning plan saved.');
     } catch (e) {
@@ -427,6 +432,26 @@ export default function CourseCompassApp() {
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     }
   }, [startPlan]);
+
+  const openedAnalysis = useRef<string | null>(null);
+  useEffect(() => {
+    const id=new URLSearchParams(window.location.search).get('analysis');
+    if(!id || syncing || (session && !isProfileComplete(profile)))return;
+    if(!session){setAuthOpen(true);return;}
+    if(openedAnalysis.current===`${session.user.id}:${id}`)return;
+    let active=true;
+    openedAnalysis.current=`${session.user.id}:${id}`;
+    void fetch('/api/extension/analyses',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({id})}).then(async response=>{
+      const data=await response.json() as {plan?:unknown;error?:string};
+      if(!response.ok)throw new Error(data.error||'Saved job roadmap could not be loaded.');
+      const checked=planSchema.safeParse(data.plan);if(!checked.success)throw new Error('Saved roadmap data is invalid.');
+      if(!active)return;
+      setPlan(checked.data);go('learning');
+      const url=new URL(window.location.href);url.searchParams.delete('analysis');url.hash='roadmap';window.history.replaceState({},'',url.pathname+url.search+url.hash);
+      toast.success('Your saved job roadmap is ready. Previous progress is preserved.');
+    }).catch(error=>{if(active){openedAnalysis.current=null;toast.error(error instanceof Error?error.message:'Could not load saved analysis. Refresh to retry.');}});
+    return()=>{active=false;openedAnalysis.current=null;};
+  },[session,syncing,go,profile]);
 
   function selectGoal(d: Degree) {
     const p = {...profile, goal: d.id, student_knows_degree: true};
