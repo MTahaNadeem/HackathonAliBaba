@@ -9,6 +9,7 @@ const storageReady = (chrome.storage?.session?.setAccessLevel
 chrome.runtime.onInstalled.addListener(()=>{chrome.action.setBadgeBackgroundColor({color:'#22c55e'});});
 async function auth(input){
  const response=await fetch(`${APP_ORIGIN}/api/extension/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:AbortSignal.timeout(20000)});
+ const ct=response.headers.get('content-type')||'';if(!ct.includes('application/json')){const error=new Error(`Server returned an unexpected response (${response.status}). Please try again later.`);error.status=response.status;throw error;}
  const data=await response.json();if(!response.ok){const error=new Error(data.error||'Account service unavailable.');error.status=response.status;throw error;}return data;
 }
 async function saveSession(data){const session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,userId:data.user.id,email:data.user.email};await chrome.storage.local.set({compassSession:session});return session;}
