@@ -1,8 +1,20 @@
 import { body, failure, ApiError, sameOrigin } from '@/lib/server';
 import { callGroq } from '@/lib/ai';
+import { skillNames } from '@/lib/catalogue';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesKeyword(text: string, kw: string): boolean {
+  if (!kw || !kw.trim()) return false;
+  const escaped = escapeRegex(kw.trim());
+  const pattern = new RegExp(`(?:^|[^a-zA-Z0-9_#+])${escaped}(?:$|[^a-zA-Z0-9_#+])`, 'i');
+  return pattern.test(text);
+}
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   // Polyfill canvas-related globals before loading pdf-parse in Node runtime
@@ -23,55 +35,108 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     const { PDFParse } = await import('pdf-parse');
     const parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
-    return parsed.text || '';
+    if (parsed.text && parsed.text.trim().length > 0) {
+      return parsed.text;
+    }
   } catch (e) {
-    console.error('PDF parsing error:', e);
-    throw new ApiError(400, 'Could not read text from the PDF file. Please ensure it contains selectable text, or paste your resume text directly.');
+    console.warn('PDFParse primary extraction notice:', e);
   }
+
+  // Fallback: extract legible text sequences from binary buffer
+  const rawAscii = buffer.toString('utf-8').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+  const readableWords = rawAscii.match(/[a-zA-Z0-9+#'.-]{2,}/g);
+  if (readableWords && readableWords.length > 25) {
+    return readableWords.join(' ');
+  }
+
+  throw new ApiError(400, 'Could not read text from the PDF file. Please ensure it contains selectable text, or paste your resume text directly.');
 }
 
-function heuristicExtract(text: string) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const skills: string[] = [];
-  let experience = '';
-  let projects = '';
-  let certifications = '';
-  let links = '';
+function extractSections(text: string) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const sections: Record<'experience' | 'projects' | 'certifications' | 'skills' | 'links', string[]> = {
+    experience: [],
+    projects: [],
+    certifications: [],
+    skills: [],
+    links: [],
+  };
+
+  let currentSection: 'experience' | 'projects' | 'certifications' | 'skills' | 'other' = 'other';
+
+  const headingPatterns = [
+    { type: 'skills' as const, re: /^(?:technical\s+|core\s+)?skills(?:\s*[:&–-])?$/i },
+    { type: 'experience' as const, re: /^(?:work\s+|professional\s+|employment\s+)?experience(?:\s*[:&–-])?$/i },
+    { type: 'projects' as const, re: /^(?:key\s+|personal\s+|academic\s+)?projects(?:\s*[:&–-])?$/i },
+    { type: 'certifications' as const, re: /^(?:certifications?|licenses?|courses?|awards?)(?:\s*[:&–-])?$/i },
+    { type: 'other' as const, re: /^(?:education|summary|objective|about\s+me|profile|languages?)(?:\s*[:&–-])?$/i },
+  ];
 
   for (const line of lines) {
-    const lower = line.toLowerCase();
-    if (lower.startsWith('skills:') || lower.startsWith('skills -')) {
-      const s = line.substring(line.indexOf(':') + 1).split(/[,;•|]/);
-      skills.push(...s.map(x => x.trim()).filter(Boolean));
-    } else if (lower.startsWith('experience:') || lower.startsWith('work experience:')) {
-      experience += (experience ? '\n' : '') + line.substring(line.indexOf(':') + 1).trim();
-    } else if (lower.startsWith('projects:') || lower.startsWith('project:')) {
-      projects += (projects ? '\n' : '') + line.substring(line.indexOf(':') + 1).trim();
-    } else if (lower.startsWith('certifications:') || lower.startsWith('certification:')) {
-      certifications += (certifications ? '\n' : '') + line.substring(line.indexOf(':') + 1).trim();
-    } else if (lower.startsWith('links:') || lower.includes('github.com') || lower.includes('linkedin.com') || lower.startsWith('http')) {
-      links += (links ? '\n' : '') + (lower.startsWith('links:') ? line.substring(line.indexOf(':') + 1).trim() : line);
+    const matched = headingPatterns.find(h => h.re.test(line));
+    if (matched) {
+      currentSection = matched.type;
+      continue;
+    }
+
+    const linkMatches = line.match(/https?:\/\/[^\s)]+|github\.com\/[^\s)]+|linkedin\.com\/in\/[^\s)]+/gi);
+    if (linkMatches) {
+      sections.links.push(...linkMatches);
+    }
+
+    if (currentSection !== 'other') {
+      sections[currentSection].push(line);
     }
   }
 
-  if (skills.length === 0) {
-    const common = ['Python', 'JavaScript', 'TypeScript', 'React', 'Node.js', 'SQL', 'Git', 'HTML', 'CSS', 'AWS', 'Docker', 'Problem Solving', 'Communication', 'Java', 'C++'];
-    for (const kw of common) {
-      if (new RegExp(`\\b${kw}\\b`, 'i').test(text)) {
-        skills.push(kw);
+  return sections;
+}
+
+function heuristicExtract(text: string) {
+  const sections = extractSections(text);
+  const extractedSkills = new Set<string>();
+
+  // 1. From explicitly listed skills lines
+  for (const line of sections.skills) {
+    const parts = line.replace(/^(?:skills|technical skills|tools)[\s:–-]+/i, '').split(/[,;•|/·\t]/);
+    for (const p of parts) {
+      const clean = p.trim();
+      if (clean.length >= 2 && clean.length <= 40 && !clean.includes('\n')) {
+        extractedSkills.add(clean);
       }
     }
   }
 
+  // 2. Scan text for catalogue skills and common tech & soft skills (safely escaped)
+  const commonTech = [
+    ...skillNames,
+    'Python', 'JavaScript', 'TypeScript', 'React', 'Next.js', 'Node.js', 'Express',
+    'SQL', 'PostgreSQL', 'MySQL', 'MongoDB', 'Git', 'GitHub', 'HTML', 'CSS', 'Tailwind',
+    'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Linux', 'Java', 'C++', 'C#',
+    'REST APIs', 'GraphQL', 'Machine Learning', 'Data Analysis', 'Deep Learning',
+    'Problem Solving', 'Communication', 'Teamwork', 'Agile', 'Scrum'
+  ];
+
+  for (const kw of commonTech) {
+    if (matchesKeyword(text, kw)) {
+      extractedSkills.add(kw);
+    }
+  }
+
+  const skillsList = Array.from(extractedSkills);
+  const experience = sections.experience.slice(0, 15).join('\n') || text.slice(0, 350);
+  const projects = sections.projects.slice(0, 15).join('\n') || '';
+  const certifications = sections.certifications.slice(0, 10).join('\n') || '';
+  const links = Array.from(new Set(sections.links)).join('\n') || '';
+
   return {
-    skills: skills.length > 0 ? Array.from(new Set(skills)) : ["JavaScript", "React", "Node.js", "Problem Solving"],
-    experience: experience || text.slice(0, 300),
-    projects: projects || "Extracted from resume",
-    certifications: certifications || "",
-    links: links || ""
+    skills: skillsList.length > 0 ? skillsList : ['Problem Solving', 'Communication'],
+    experience,
+    projects: projects || 'Extracted from resume',
+    certifications,
+    links
   };
 }
-
 
 export async function POST(req: Request) {
   try {
@@ -84,7 +149,9 @@ export async function POST(req: Request) {
       const formData = await req.formData();
       const file = formData.get('file') as File;
       if (!file) throw new ApiError(400, 'No file provided.');
-      if (file.type === 'application/pdf') {
+
+      const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
         const buffer = Buffer.from(await file.arrayBuffer());
         text = await extractPdfText(buffer);
       } else {

@@ -231,6 +231,17 @@ export function rankTopUniversities(
  */
 export function isProfileComplete(p: Profile | null | undefined): boolean {
   if (!p) return false;
+  const isGraduate = p.stage === 'Graduate / job seeker' || p.journey === 'career';
+  if (isGraduate) {
+    const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
+    const hasCity = Boolean(p.city && p.city.trim().length > 0);
+    const hasSkillsOrCv = Boolean(
+      (Array.isArray(p.skills) && p.skills.length > 0) ||
+      (p.resumeText && p.resumeText.trim().length > 0) ||
+      (p.extractedSkills && p.extractedSkills.trim().length > 0)
+    );
+    return Boolean(hasQualification && hasCity && hasSkillsOrCv);
+  }
   const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
   const hasGoalOrModelRecommendation = Boolean(
     (p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal)) ||
