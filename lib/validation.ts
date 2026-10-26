@@ -3,5 +3,56 @@ import {qualifications,skillNames,interestOptions,degrees} from './catalogue';
 const percent=z.number().min(0).max(100).nullable();
 export const profileSchema=z.object({name:z.string().trim().max(60),stage:z.enum(['Choosing a degree','Undergraduate','Graduate / job seeker']),qualification:z.enum(qualifications),subjects:z.array(z.string().trim().min(1).max(50)).max(15),interests:z.array(z.enum(interestOptions as [string,...string[]])).max(15),skills:z.array(z.enum(skillNames as [string,...string[]])).max(30),city:z.string().trim().max(60),budget:z.number().min(0).max(10000000).nullable(),hours:z.number().int().min(1).max(30),ssc:percent,hssc:percent,equivalence:z.boolean(),net:percent,goal:z.string().max(80).refine(v=>!v||degrees.some(d=>d.id===v)),relocate:z.boolean(),experience:z.string().max(10000).default(''),projects:z.string().max(10000).default(''),certifications:z.string().max(10000).default(''),links:z.string().max(2000).default(''),resumeText:z.string().max(50000).default(''),extractedSkills:z.string().max(10000).default(''),journey:z.enum(['student','career']).optional().default('student'),student_knows_degree:z.boolean().optional(),specialization:z.string().max(100).optional().default(''),career_goal:z.string().max(100).optional().default('')});
 export const jobSchema=z.object({text:z.string().max(15000).default(''),url:z.string().max(500).optional().or(z.literal('')),profile:profileSchema.optional()}).refine(d=>(Boolean(d.url&&d.url.length>0))||(d.text.trim().length>=30),{message:'Paste at least 30 characters of the job description or provide a URL.'});
-export const planSchema=z.object({id:z.string().uuid(),title:z.string().max(200),goal:z.string().max(100),createdAt:z.string().datetime(),hoursPerWeek:z.number().optional(),milestones:z.array(z.object({id:z.string().max(60),skill:z.string().max(60),title:z.string().max(200),startLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),structuredLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),practice:z.string(),proveSkill:z.string().optional().default(''),state:z.enum(['Not started','Learning','Practiced','Demonstrated']).optional().default('Not started'),notes:z.string().default(''),evidenceUrl:z.string().default(''),resourceId:z.string().max(100).nullable().optional(),hours:z.number().optional(),done:z.boolean().optional()})),interviewPrep:z.object({technical:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),behavioral:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),resumeChecklist:z.array(z.string()),applicationChecklist:z.array(z.string())}).optional()});
+export const planSchema=z.object({
+  id:z.string().uuid(),
+  title:z.string().max(250),
+  goal:z.string().max(150),
+  createdAt:z.string().datetime(),
+  hoursPerWeek:z.number().optional(),
+  description:z.string().max(5000).optional(),
+  goalType:z.enum(['degree','career','specialization','skill']).optional(),
+  subject:z.string().max(250).optional(),
+  targetOutcome:z.string().max(1500).optional(),
+  estimatedDuration:z.string().max(100).optional(),
+  assessment:z.object({
+    whatYouWillLearn:z.string().max(5000),
+    whyIncluded:z.string().max(5000),
+    expectedSequence:z.string().max(5000),
+    estimatedTotalDuration:z.string().max(200),
+    majorMilestones:z.array(z.string().max(500)).max(30),
+    targetOutcome:z.string().max(2000).optional(),
+    existingKnowledgeAssessed:z.string().max(2000).optional(),
+    skillGapsIdentified:z.array(z.string().max(200)).optional(),
+    providerNotice:z.string().max(500).optional()
+  }).optional(),
+  modules:z.array(z.object({
+    id:z.string().max(100),
+    title:z.string().max(250),
+    description:z.string().max(2000),
+    learningObjectives:z.array(z.string().max(500)).max(25),
+    estimatedDuration:z.string().max(100),
+    prerequisites:z.array(z.string().max(500)).max(25),
+    lessons:z.array(z.object({
+      id:z.string().max(100),
+      title:z.string().max(250),
+      description:z.string().max(2000),
+      learningObjective:z.string().max(1000),
+      estimatedDuration:z.string().max(100),
+      resources:z.array(z.object({
+        title:z.string().max(300),
+        provider:z.string().max(200),
+        url:z.string().max(2000),
+        resourceType:z.enum(['video','course','documentation','article','exercise']),
+        verified:z.boolean().optional()
+      })).max(15),
+      practiceTask:z.string().max(2000).optional(),
+      done:z.boolean().optional(),
+      notes:z.string().max(5000).optional()
+    })).max(30)
+  })).max(30).optional(),
+  source:z.enum(['groq','qwen','deterministic']).optional(),
+  fallbackUsed:z.boolean().optional(),
+  milestones:z.array(z.object({id:z.string().max(60),skill:z.string().max(60),title:z.string().max(200),startLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),structuredLearning:z.object({title:z.string(),url:z.string(),provider:z.string(),level:z.string(),cost:z.string()}).nullable().optional(),practice:z.string(),proveSkill:z.string().optional().default(''),state:z.enum(['Not started','Learning','Practiced','Demonstrated']).optional().default('Not started'),notes:z.string().default(''),evidenceUrl:z.string().default(''),resourceId:z.string().max(100).nullable().optional(),hours:z.number().optional(),done:z.boolean().optional()})),
+  interviewPrep:z.object({technical:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),behavioral:z.array(z.object({question:z.string(),hint:z.string(),answer:z.string()})),resumeChecklist:z.array(z.string()),applicationChecklist:z.array(z.string())}).optional()
+});
 export const chatSchema=z.object({message:z.string().trim().min(1).max(2000),goal:z.string().max(80).default(''),skills:z.array(z.enum(skillNames as [string,...string[]])).max(20).default([]),consent:z.boolean().default(false)});

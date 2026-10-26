@@ -41,7 +41,7 @@ export default function Jobs({profile,onPlan,recommendations}:{profile:Profile;r
     }
   }
 
-  const personalizedRoles = prioritizePersonalized && recommendations?.source === 'qwen' && recommendations.kind === 'careers' ? recommendations.careers : undefined;
+  const personalizedRoles = prioritizePersonalized && recommendations?.source === 'groq' && recommendations.kind === 'careers' ? recommendations.careers : undefined;
   const filtered = (personalizedRoles || roles)
     .filter(r => `${r.title} ${r.city} ${r.description}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => {
@@ -157,7 +157,7 @@ export default function Jobs({profile,onPlan,recommendations}:{profile:Profile;r
               </button>
             </div>
           )}
-          {personalizedRoles && <p className="small-text muted">Qwen-personalized role suggestions; skill matches are self-reported, not verified competence.</p>}
+          {personalizedRoles && <p className="small-text muted">Groq-personalized role suggestions; skill matches are self-reported, not verified competence.</p>}
           <div className="role-list">
             {filtered.map(r => (
               <button key={r.id} className={`role-card ${title === r.title ? 'chosen' : ''}`} onClick={() => { setTitle(r.title); setText(r.description); setUrl(''); setResult(null); }}>

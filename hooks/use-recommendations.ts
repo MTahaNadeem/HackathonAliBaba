@@ -22,7 +22,7 @@ export function useRecommendations(profile: Profile, enabled: boolean) {
         });
         if (!response.ok) return;
         const result = await response.json() as RecommendationResult;
-        if (active && (result.source === 'qwen' || result.source === 'deterministic') && Array.isArray(result.degreeRecommendations) && Array.isArray(result.careers)) setState({ key, result });
+        if (active && (result.source === 'groq' || result.source === 'deterministic') && Array.isArray(result.degreeRecommendations) && Array.isArray(result.careers)) setState({ key, result });
       } catch { /* Existing local recommendations remain available. */ }
     }, 500);
     return () => { active = false; clearTimeout(timer); controller.abort(); };

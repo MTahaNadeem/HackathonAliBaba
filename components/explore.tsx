@@ -34,7 +34,7 @@ export default function Explore({profile, onGoal, go, recommendations}: ExploreP
   const [compare, setCompare] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
 
-  const rankedRecs = recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations : rankTopDegrees(profile, 33);
+  const rankedRecs = recommendations?.source === 'groq' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations : rankTopDegrees(profile, 33);
   const scoreMap = new Map(rankedRecs.map(r => [r.degree.id, r.score]));
 
   const getScore = (d: Degree) => {
@@ -59,7 +59,7 @@ export default function Explore({profile, onGoal, go, recommendations}: ExploreP
     return 50;
   };
 
-  const list = (recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.recommendations : recommend(profile))
+  const list = (recommendations?.source === 'groq' && recommendations.kind === 'degrees' ? recommendations.recommendations : recommend(profile))
     .filter(
       d =>
         (field === 'All fields' || d.field === field) &&

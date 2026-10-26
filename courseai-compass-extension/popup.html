@@ -108,6 +108,13 @@
       </div>
     </div>
 
+    <details style="padding: 12px 20px;">
+      <summary>Paste a job description instead</summary>
+      <textarea id="manualJobText" maxlength="15000" rows="6" placeholder="Paste the full job description" style="width:100%;margin-top:12px;"></textarea>
+      <button id="manualAnalyze" class="btn-primary" style="margin-top:8px;">Analyze pasted description</button>
+      <p id="manualError" role="alert"></p>
+    </details>
+
     <!-- Results state -->
     <div id="resultsState" style="display:none;">
 

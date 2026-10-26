@@ -30,7 +30,9 @@ import ProfileView from './profile';
 import Adviser from './adviser';
 import AuthDialog from './auth-dialog';
 import StudentOnboarding from './student-onboarding';
-import {emptyProfile, createPlan, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
+import CareerOnboarding from './career-onboarding';
+import CareerDashboard from './career-dashboard';
+import {emptyProfile, createPlan, synthesizeCurriculumIfMissing, isProfileComplete, type Profile, type Plan, type Journey} from '@/lib/domain';
 import {degrees, type Degree, type University} from '@/lib/catalogue';
 import {profileSchema, planSchema} from '@/lib/validation';
 import {isAuthHash} from '@/lib/auth';
@@ -72,6 +74,7 @@ export default function CourseCompassApp() {
   const [adviser, setAdviser] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [studentOnboardingOpen, setStudentOnboardingOpen] = useState(false);
+  const [careerOnboardingOpen, setCareerOnboardingOpen] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -88,8 +91,10 @@ export default function CourseCompassApp() {
   } | null>(null);
 
   const profileComplete = isProfileComplete(profile);
-  const requiresOnboarding = Boolean(session && !syncing && !profileComplete);
-  const recommendations = useRecommendations(profile, !syncing && (profile.journey === 'career' || (profile.subjects?.length ?? 0) > 0 || (profile.interests?.length ?? 0) > 0));
+  const isCareerMode = profile.journey === 'career' || profile.stage === 'Graduate / job seeker';
+  // Career journey: don't redirect to onboarding — use career-specific flow instead
+  const requiresOnboarding = Boolean(session && !syncing && !profileComplete && !isCareerMode);
+  const recommendations = useRecommendations(profile, !syncing && (isCareerMode || (profile.subjects?.length ?? 0) > 0 || (profile.interests?.length ?? 0) > 0));
 
   // Forced redirect for authenticated users with incomplete profiles
   useEffect(() => {
@@ -118,7 +123,8 @@ export default function CourseCompassApp() {
 
   const go = useCallback((target: string) => {
     const normalized = normalizeView(target);
-    if (session && !syncing && !isProfileComplete(profile) && normalized !== 'profile') {
+    const isCareer = profile.journey === 'career' || profile.stage === 'Graduate / job seeker';
+    if (session && !syncing && !isProfileComplete(profile) && !isCareer && normalized !== 'profile') {
       toast.error('Complete your required preferences first to personalize your experience.');
       return;
     }
@@ -144,12 +150,16 @@ export default function CourseCompassApp() {
 
     // Switch view to align with the journey
     if (newJourney === 'career') {
-      if (view === 'universities' || view === 'explore' || view === 'dashboard') {
-        go('jobs');
+      // Always go to dashboard for career — CareerDashboard renders there
+      go('dashboard');
+      // Open career onboarding if no career profile yet
+      const hasCareerProfile = (updated.skills?.length ?? 0) > 0 || (updated.interests?.length ?? 0) > 0;
+      if (!hasCareerProfile) {
+        setTimeout(() => setCareerOnboardingOpen(true), 200);
       }
     } else {
       if (view === 'jobs' || view === 'dashboard') {
-        go('universities');
+        go('explore');
       }
     }
 
@@ -164,7 +174,8 @@ export default function CourseCompassApp() {
     function handleHash() {
       const raw = location.hash.slice(1);
       if (isAuthHash(raw)) return;
-      if (session && !syncing && !isProfileComplete(profile)) {
+      const isCareer = profile.journey === 'career' || profile.stage === 'Graduate / job seeker';
+      if (session && !syncing && !isProfileComplete(profile) && !isCareer) {
         setView('profile');
         return;
       }
@@ -220,11 +231,22 @@ export default function CourseCompassApp() {
   useEffect(() => {
     if (!session) {
       setSync('Guest session');
+      try {
+        const saved = localStorage.getItem('coursecompass_guest_plan');
+        if (saved) {
+          const parsed = planSchema.safeParse(JSON.parse(saved));
+          if (parsed.success) {
+            setPlan(prev => prev || synthesizeCurriculumIfMissing(parsed.data));
+          }
+        }
+      } catch {}
       return;
     }
     let alive = true;
     setSyncing(true);
     setSync('Loading account');
+    setPlan(null);
+    setProfile(emptyProfile);
     const headers = {Authorization: `Bearer ${session.access_token}`};
     Promise.all([fetch('/api/profile', {headers}), fetch('/api/plans', {headers})])
       .then(async ([pr, pl]) => {
@@ -238,7 +260,10 @@ export default function CourseCompassApp() {
         }
         if (l.plan) {
           const checked = planSchema.safeParse(l.plan);
-          if (checked.success) setPlan(checked.data);
+          if (checked.success) {
+            const enriched = synthesizeCurriculumIfMissing(checked.data);
+            setPlan(enriched);
+          }
         }
         setSync('Account connected');
       })
@@ -276,7 +301,11 @@ export default function CourseCompassApp() {
       const saved = await persist('/api/profile', p);
       setSync(saved ? 'Saved to account' : 'Guest session');
       toast.success(saved ? 'Preferences saved! Your workspace is now personalized.' : 'Preferences updated for this session.');
-      if (isProfileComplete(p)) {
+      const isCareer = p.journey === 'career' || p.stage === 'Graduate / job seeker';
+      if (isCareer) {
+        setView('dashboard');
+        window.location.hash = '';
+      } else if (isProfileComplete(p)) {
         setView('dashboard');
         window.location.hash = '';
       }
@@ -288,10 +317,18 @@ export default function CourseCompassApp() {
     }
   }
 
+  const planSaveQueue=useRef<Promise<unknown>>(Promise.resolve());
   async function updatePlan(p: Plan) {
-    setPlan(p);
+    const enriched = synthesizeCurriculumIfMissing(p);
+    setPlan(enriched);
     try {
-      const saved = await persist('/api/plans', p);
+      if(!sessionRef.current)localStorage.setItem('coursecompass_guest_plan', JSON.stringify(enriched));
+    } catch {}
+    try {
+      const owner=sessionRef.current?.user.id;
+      const pending=planSaveQueue.current.catch(()=>{}).then(()=>{if(sessionRef.current?.user.id!==owner)throw new Error('Account changed before the plan could be saved.');return persist('/api/plans',enriched);});
+      planSaveQueue.current=pending;
+      const saved=await pending;
       setSync(saved ? 'Saved to account' : 'Guest session');
       if (saved) toast.success('Learning plan saved.');
     } catch (e) {
@@ -305,17 +342,62 @@ export default function CourseCompassApp() {
       setBusy(true);
       toast('Generating your personalised learning plan...', { duration: 3000 });
       try {
-        const r = await fetch('/api/plans/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal: goalTitle, skills: skillsList.slice(0, 8), profile: recommendationProfile(profile) }) });
-        if(r.ok) {
+        const goalLower = goalTitle.toLowerCase();
+        const isCareer = profile.journey === 'career' || Boolean(profile.career_goal && profile.career_goal.toLowerCase() === goalLower);
+        const isDegree = degrees.some(d => d.name.toLowerCase() === goalLower || d.id === profile.goal) || /^BS\s|^Bachelor|^Master|^MS\s|^BE\s/i.test(goalTitle);
+        const goalType: 'degree' | 'career' | 'specialization' | 'skill' = isCareer ? 'career' : (profile.specialization ? 'specialization' : (isDegree ? 'degree' : 'skill'));
+
+        const userSkills = Array.from(new Set([
+          ...(profile.skills || []),
+          ...skillsList,
+          ...(profile.extractedSkills ? profile.extractedSkills.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [])
+        ]));
+
+        let targetSkills: string[] = [];
+        const matchedDeg = degrees.find(d => d.name.toLowerCase() === goalLower || d.id === profile.goal);
+        if (matchedDeg) {
+          targetSkills = matchedDeg.skills;
+        }
+        const missingSkills = targetSkills.filter(s => !userSkills.some(us => us.toLowerCase() === s.toLowerCase()));
+
+        const r = await fetch('/api/plans/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            goal: goalTitle,
+            skills: userSkills.slice(0, 15),
+            missingSkills,
+            profile: {
+              ...recommendationProfile(profile),
+              skills: userSkills,
+              interests: profile.interests || [],
+              subjects: profile.subjects || [],
+              stage: profile.stage,
+              qualification: profile.qualification,
+              hours: profile.hours,
+              specialization: profile.specialization || '',
+              career_goal: profile.career_goal || '',
+              experience: profile.experience || '',
+              projects: profile.projects || ''
+            },
+            mode: 'curriculum',
+            goalType
+          })
+        });
+        if (r.ok) {
           const p = await r.json() as Plan;
           await updatePlan(p);
           go('learning');
-          toast.success(session?'Your learning plan is ready.':'Plan ready for this session. Download it to keep a copy.');
+          toast.success(session ? 'Your learning plan is ready.' : 'Plan ready for this session. Download it to keep a copy.');
           return;
         }
-      } catch(e) {} finally { setBusy(false); }
+      } catch (e) {
+      } finally {
+        setBusy(false);
+      }
       // Fallback
-      const p = createPlan(goalTitle, skillsList, profile.hours);
+      const base = createPlan(goalTitle, skillsList, profile.hours);
+      const p = synthesizeCurriculumIfMissing(base);
       void updatePlan(p);
       go('learning');
       toast.success(session ? 'Your learning plan is ready.' : 'Plan ready for this session. Download it to keep a copy.');
@@ -350,6 +432,26 @@ export default function CourseCompassApp() {
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     }
   }, [startPlan]);
+
+  const openedAnalysis = useRef<string | null>(null);
+  useEffect(() => {
+    const id=new URLSearchParams(window.location.search).get('analysis');
+    if(!id || syncing || (session && !isProfileComplete(profile)))return;
+    if(!session){setAuthOpen(true);return;}
+    if(openedAnalysis.current===`${session.user.id}:${id}`)return;
+    let active=true;
+    openedAnalysis.current=`${session.user.id}:${id}`;
+    void fetch('/api/extension/analyses',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({id})}).then(async response=>{
+      const data=await response.json() as {plan?:unknown;error?:string};
+      if(!response.ok)throw new Error(data.error||'Saved job roadmap could not be loaded.');
+      const checked=planSchema.safeParse(data.plan);if(!checked.success)throw new Error('Saved roadmap data is invalid.');
+      if(!active)return;
+      setPlan(checked.data);go('learning');
+      const url=new URL(window.location.href);url.searchParams.delete('analysis');url.hash='roadmap';window.history.replaceState({},'',url.pathname+url.search+url.hash);
+      toast.success('Your saved job roadmap is ready. Previous progress is preserved.');
+    }).catch(error=>{if(active){openedAnalysis.current=null;toast.error(error instanceof Error?error.message:'Could not load saved analysis. Refresh to retry.');}});
+    return()=>{active=false;openedAnalysis.current=null;};
+  },[session,syncing,go,profile]);
 
   function selectGoal(d: Degree) {
     const p = {...profile, goal: d.id, student_knows_degree: true};
@@ -647,7 +749,14 @@ export default function CourseCompassApp() {
               Loading your saved account…
             </div>
           )}
-          {view === 'dashboard' && (
+          {view === 'dashboard' && profile.journey === 'career' ? (
+            <CareerDashboard
+              profile={profile}
+              onStartPlan={startPlan}
+              onEditProfile={() => setCareerOnboardingOpen(true)}
+              go={go}
+            />
+          ) : view === 'dashboard' ? (
             <Dashboard
               go={go}
               onChat={() => setAdviser(true)}
@@ -661,7 +770,7 @@ export default function CourseCompassApp() {
               liveUniversities={catalogueData?.universities}
               recommendations={recommendations}
             />
-          )}
+          ) : null}
           {view === 'explore' && <Explore profile={profile} onGoal={selectGoal} go={go} recommendations={recommendations} />}
           {view === 'universities' && (
             <Universities
@@ -738,6 +847,12 @@ export default function CourseCompassApp() {
           setProfile(updated);
           go('dashboard');
         }}
+      />
+      <CareerOnboarding
+        open={careerOnboardingOpen}
+        onOpenChange={setCareerOnboardingOpen}
+        profile={profile}
+        onSaveProfile={saveProfile}
       />
       <Toaster position="bottom-center" />
     </SidebarProvider>

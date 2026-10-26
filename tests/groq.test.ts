@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createQwenRequest, qwenConfig, QwenFailure } from '../lib/ai/qwen-provider';
+import { createGroqRequest, groqConfig, GroqFailure } from '../lib/ai/groq-provider';
 import { personalizeRecommendations, personalizePlan, careerCandidates, recommendationContext } from '../lib/ai/recommendation-engine';
 import { emptyProfile, rankTopDegrees, recommend, rankTopUniversities, type Profile } from '../lib/domain';
 import { universities, resources } from '../lib/catalogue';
@@ -15,28 +15,27 @@ import { POST as planPOST } from '../app/api/plans/generate/route';
 const student: Profile = { ...emptyProfile, subjects: ['Mathematics', 'Computer Science'], interests: ['Technology'], skills: ['Python'], ssc: 88, hssc: 85, city: 'Lahore', budget: 200000, student_knows_degree: false };
 const output = (p = student) => ({ recommendations: (p.journey === 'career' ? careerCandidates(p).map(r => ({ id: r.id, score: r.score })) : rankTopDegrees(p, 33).map(r => ({ id: r.degree.id, score: r.score }))).map(r => ({ ...r, explanation: 'Your Python background offers a starting point; build evidence for the remaining skills.', nextAction: 'Build and document a small practice project.' })) });
 const completion = (content: string, finish = 'stop') => Response.json({ choices: [{ finish_reason: finish, message: { content } }] });
-const transport = (response: () => Response) => createQwenRequest({ env: { DASHSCOPE_API_KEY: 'test-only' }, fetcher: async () => response() });
+const transport = (response: () => Response) => createGroqRequest({ env: { GROQ_API_KEY: 'test-only' }, fetcher: async () => response() });
 
-void test('Qwen provider sends official regional JSON request and configurable model', async () => {
+void test('Groq provider sends official JSON request and configurable model', async () => {
   let calls = 0;
-  const request = createQwenRequest({ env: { DASHSCOPE_API_KEY: 'test-only', QWEN_MODEL: 'qwen-plus', QWEN_REGION: 'ap-southeast-1' }, fetcher: async (url, init) => {
+  const request = createGroqRequest({ env: { GROQ_API_KEY: 'test-only', GROQ_MODEL: 'llama-3.3-70b-versatile' }, fetcher: async (url, init) => {
     calls++;
-    assert.equal(url, 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions');
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
     assert.equal(typeof init?.body, 'string');
     const data = JSON.parse(init?.body as string);
-    assert.equal(data.model, 'qwen-plus');
+    assert.equal(data.model, 'llama-3.3-70b-versatile');
     assert.deepEqual(data.response_format, { type: 'json_object' });
-    assert.equal(data.enable_thinking, false);
     assert.equal(init?.redirect, 'error');
     return completion(JSON.stringify(output()));
   } });
   const result = await personalizeRecommendations(student, request);
-  assert.equal(calls, 1); assert.equal(result.source, 'qwen'); assert.equal(result.fallbackUsed, false);
-  assert.equal(qwenConfig({ QWEN_REGION: 'cn-beijing' }).endpoint, 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions');
-  assert.throws(() => qwenConfig({ QWEN_REGION: 'unknown' }), QwenFailure);
+  assert.equal(calls, 1); assert.equal(result.source, 'groq'); assert.equal(result.fallbackUsed, false);
+  assert.equal(groqConfig().endpoint, 'https://api.groq.com/openai/v1/chat/completions');
+  assert.throws(() => groqConfig({ GROQ_MODEL: 'invalid model!!' }), GroqFailure);
 });
 
-void test('Qwen degree scores stay within ten points and preserve factual catalogue fields', async () => {
+void test('Groq degree scores stay within ten points and preserve factual catalogue fields', async () => {
   const data = output(); data.recommendations.forEach(r => { r.score = 100; });
   const result = await personalizeRecommendations(student, async () => data);
   for (const rec of result.degreeRecommendations) {
@@ -72,9 +71,9 @@ for (const [name, request] of [
   ['empty content', transport(() => completion(''))],
   ['rate limit', transport(() => new Response('', { status: 429 }))],
   ['provider failure', transport(() => new Response('', { status: 503 }))],
-  ['network failure', createQwenRequest({ env: { DASHSCOPE_API_KEY: 'test-only' }, fetcher: async () => { throw new Error('sensitive provider error'); } })],
-  ['timeout', createQwenRequest({ env: { DASHSCOPE_API_KEY: 'test-only' }, timeoutMs: 5, fetcher: () => new Promise(() => {}) })],
-  ['missing key', createQwenRequest({ env: {}, fetcher: async () => { assert.fail('Must not call network'); } })],
+  ['network failure', createGroqRequest({ env: { GROQ_API_KEY: 'test-only' }, fetcher: async () => { throw new Error('sensitive provider error'); } })],
+  ['timeout', createGroqRequest({ env: { GROQ_API_KEY: 'test-only' }, timeoutMs: 5, fetcher: () => new Promise(() => {}) })],
+  ['missing key', createGroqRequest({ env: {}, fetcher: async () => { assert.fail('Must not call network'); } })],
 ] as const) void test(`${name} safely falls back`, async () => {
   const result = await personalizeRecommendations(student, request);
   assert.equal(result.source, 'deterministic'); assert.deepEqual(result.degreeRecommendations, rankTopDegrees(student, 33));
@@ -99,11 +98,11 @@ void test('Career recommendations preserve skill evidence and exclude raw person
   assert.deepEqual(developer.matchedSkills, ['Python']); assert.deepEqual(developer.uncertainSkills, ['SQL']);
   assert.ok(developer.missingSkills.includes('Git'));
   const html = renderToStaticMarkup(React.createElement(Jobs, { profile: p, onPlan: () => {}, recommendations: result }));
-  assert.match(html, /Qwen-personalized/); assert.match(html, /not live vacancies/); assert.match(html, /CV-mentioned; confirm/);
+  assert.match(html, /Groq-personalized/); assert.match(html, /not live vacancies/); assert.match(html, /CV-mentioned; confirm/);
   assert.equal(recommendationContext(p).targetRoleId, null);
 });
 
-void test('Qwen cannot override ineligible university results, fees or verification', async () => {
+void test('Groq cannot override ineligible university results, fees or verification', async () => {
   const p = { ...student, goal: 'civil', student_knows_degree: true, ssc: 45, hssc: 45 };
   const original = structuredClone(rankTopUniversities(universities, p, p.goal));
   const result = await personalizeRecommendations(p, async () => output(p));
@@ -113,21 +112,21 @@ void test('Qwen cannot override ineligible university results, fees or verificat
   assert.equal(renderToStaticMarkup(React.createElement(Dashboard, { ...props, recommendations: result })), renderToStaticMarkup(React.createElement(Dashboard, props)));
 });
 
-void test('Case B renders Qwen results while Case A remains unchanged', async () => {
+void test('Case B renders Groq results while Case A remains unchanged', async () => {
   const result = await personalizeRecommendations(student, async () => output());
   const html = renderToStaticMarkup(React.createElement(Dashboard, { profile: student, go: () => {}, onChat: () => {}, recommendations: result }));
-  assert.match(html, /Qwen-personalized/); assert.match(html, /Your Python background/); assert.match(html, /not admission or success probabilities/);
+  assert.match(html, /Groq-personalized/); assert.match(html, /Your Python background/); assert.match(html, /not admission or success probabilities/);
 });
 
 const planOutput = { milestones: [
   { id: 'step-1', skill: 'Git', resourceId: 'git', practice: 'Track your Python project changes to practise version control.', proveSkill: 'Document a branch and merge with a short project report.' },
   { id: 'step-0', skill: 'Python', resourceId: 'python', practice: 'Build a small parser as a diagnostic for your self-reported Python skills.', proveSkill: 'Add tests for the parser and explain the results.' },
 ] };
-void test('Qwen roadmap prioritizes existing milestones and uses only catalogue resources', async () => {
+void test('Groq roadmap prioritizes existing milestones and uses only catalogue resources', async () => {
   const plan = await personalizePlan('Junior software developer', ['Python', 'Git'], 6, student, async (_, input) => {
     assert.ok(JSON.stringify(input).includes('Python')); return planOutput;
   });
-  assert.equal(plan.source, 'qwen'); assert.equal(plan.hoursPerWeek, 6);
+  assert.equal(plan.source, 'groq'); assert.equal(plan.hoursPerWeek, 6);
   assert.equal(plan.milestones[0].skill, 'Git');
   assert.equal(plan.milestones[0].structuredLearning?.url, resources.find(r => r.id === 'git')?.url);
   assert.equal(plan.milestones[0].state, 'Not started'); assert.equal(plan.milestones[0].notes, '');
@@ -157,7 +156,7 @@ void test('Plan and profile persistence contracts preserve progress and journey 
 });
 
 void test('Existing APIs accept legacy requests and fall back without credentials', async () => {
-  const previous = process.env.DASHSCOPE_API_KEY; delete process.env.DASHSCOPE_API_KEY;
+  const previous = process.env.GROQ_API_KEY; delete process.env.GROQ_API_KEY;
   try {
     const req = (path: string, body: unknown) => new Request(`http://localhost${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://localhost' }, body: JSON.stringify(body) });
     const response = await recommendationsPOST(req('/api/recommendations', student));
@@ -165,7 +164,7 @@ void test('Existing APIs accept legacy requests and fall back without credential
     const plan = await planPOST(req('/api/plans/generate', { goal: 'Developer', skills: ['Python'] }));
     assert.equal(plan.status, 200); assert.ok(planSchema.safeParse(await plan.json()).success);
     const invalid = await recommendationsPOST(req('/api/recommendations', { skills: 'bad' })); assert.equal(invalid.status, 400);
-  } finally { if (previous !== undefined) process.env.DASHSCOPE_API_KEY = previous; }
+  } finally { if (previous !== undefined) process.env.GROQ_API_KEY = previous; }
 });
 
 void test('Career rejects invented role IDs and extra model skill classifications', async () => {

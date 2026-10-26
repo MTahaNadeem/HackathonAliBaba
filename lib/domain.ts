@@ -231,6 +231,17 @@ export function rankTopUniversities(
  */
 export function isProfileComplete(p: Profile | null | undefined): boolean {
   if (!p) return false;
+  const isGraduate = p.stage === 'Graduate / job seeker' || p.journey === 'career';
+  if (isGraduate) {
+    const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
+    const hasCity = Boolean(p.city && p.city.trim().length > 0);
+    const hasSkillsOrCv = Boolean(
+      (Array.isArray(p.skills) && p.skills.length > 0) ||
+      (p.resumeText && p.resumeText.trim().length > 0) ||
+      (p.extractedSkills && p.extractedSkills.trim().length > 0)
+    );
+    return Boolean(hasQualification && hasCity && hasSkillsOrCv);
+  }
   const hasQualification = Boolean(p.qualification && p.qualification.trim().length > 0);
   const hasGoalOrModelRecommendation = Boolean(
     (p.goal && p.goal.trim().length > 0 && degrees.some(d => d.id === p.goal)) ||
@@ -342,7 +353,69 @@ export function analyseJob(text:string,skills:string[]):{gaps:Gap[];formal:strin
 export type MilestoneState = 'Not started' | 'Learning' | 'Practiced' | 'Demonstrated';
 export type Milestone={id:string;skill:string;title:string;startLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;structuredLearning?:{title:string;url:string;provider:string;level:string;cost:string}|null;practice:string;proveSkill?:string;state?:MilestoneState;notes?:string;evidenceUrl?:string;resourceId?:string|null;hours?:number;done?:boolean};
 export type InterviewPrep = {technical:{question:string;hint:string;answer:string}[];behavioral:{question:string;hint:string;answer:string}[];resumeChecklist:string[];applicationChecklist:string[]};
-export type Plan={id:string;title:string;goal:string;createdAt:string;hoursPerWeek?:number;milestones:Milestone[];interviewPrep?:InterviewPrep};
+
+export type LessonResourceType = 'video' | 'course' | 'documentation' | 'article' | 'exercise';
+
+export interface LessonResource {
+  title: string;
+  provider: string;
+  url: string;
+  resourceType: LessonResourceType;
+  verified?: boolean;
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  learningObjective: string;
+  estimatedDuration: string;
+  resources: LessonResource[];
+  practiceTask?: string;
+  done?: boolean;
+  notes?: string;
+}
+
+export interface CurriculumModule {
+  id: string;
+  title: string;
+  description: string;
+  learningObjectives: string[];
+  estimatedDuration: string;
+  prerequisites: string[];
+  lessons: Lesson[];
+}
+
+export interface LearningAssessment {
+  whatYouWillLearn: string;
+  whyIncluded: string;
+  expectedSequence: string;
+  estimatedTotalDuration: string;
+  majorMilestones: string[];
+  targetOutcome?: string;
+  existingKnowledgeAssessed?: string;
+  skillGapsIdentified?: string[];
+  providerNotice?: string;
+}
+
+export type Plan={
+  id:string;
+  title:string;
+  goal:string;
+  createdAt:string;
+  hoursPerWeek?:number;
+  milestones:Milestone[];
+  interviewPrep?:InterviewPrep;
+  description?:string;
+  goalType?:'degree'|'career'|'specialization'|'skill';
+  subject?:string;
+  targetOutcome?:string;
+  estimatedDuration?:string;
+  assessment?:LearningAssessment;
+  modules?:CurriculumModule[];
+  source?:'groq'|'qwen'|'deterministic';
+  fallbackUsed?:boolean;
+};
 
 
 export function getSkillResources(skill: string): {
@@ -573,4 +646,144 @@ export function createPlan(goal:string,skills:string[],hours:number):Plan{
     interviewPrep: getInterviewPrepForGoal(cleanGoal, wanted)
   };
 }
-export function exportPlan(p:Plan){return `# ${p.title}\n\n`+p.milestones.map((m,i)=>{return `## ${i+1}. ${m.title}\n- Status: ${m.state||(m.done?'Demonstrated':'Not started')}\n`}).join('\n')}
+export function exportPlan(p: Plan): string {
+  if (p.modules && p.modules.length > 0) {
+    let md = `# ${p.title}\n\n`;
+    if (p.description) md += `${p.description}\n\n`;
+    if (p.assessment) {
+      md += `## Learning Assessment Overview\n\n`;
+      md += `- **What you will learn**: ${p.assessment.whatYouWillLearn}\n`;
+      md += `- **Why included**: ${p.assessment.whyIncluded}\n`;
+      md += `- **Expected sequence**: ${p.assessment.expectedSequence}\n`;
+      md += `- **Estimated total duration**: ${p.assessment.estimatedTotalDuration}\n`;
+      if (p.assessment.majorMilestones?.length) {
+        md += `- **Major milestones**:\n`;
+        p.assessment.majorMilestones.forEach(m => { md += `  - ${m}\n`; });
+      }
+      md += `\n`;
+    }
+    p.modules.forEach((mod, mi) => {
+      md += `## Module ${mi + 1}: ${mod.title} (${mod.estimatedDuration})\n`;
+      md += `${mod.description}\n\n`;
+      if (mod.learningObjectives?.length) {
+        md += `**Learning Objectives:**\n`;
+        mod.learningObjectives.forEach(obj => { md += `- ${obj}\n`; });
+        md += `\n`;
+      }
+      md += `### Lessons\n\n`;
+      mod.lessons.forEach((les, li) => {
+        md += `#### ${mi + 1}.${li + 1} ${les.title} [${les.done ? 'COMPLETED' : 'INCOMPLETE'}]\n`;
+        md += `- **Duration**: ${les.estimatedDuration}\n`;
+        md += `- **Objective**: ${les.learningObjective}\n`;
+        if (les.resources?.length) {
+          md += `- **Resources**:\n`;
+          les.resources.forEach(r => {
+            md += `  - [${r.title}](${r.url}) (${r.provider} · ${r.resourceType}${r.verified ? ' · Verified' : ''})\n`;
+          });
+        }
+        if (les.practiceTask) {
+          md += `- **Practice Task**: ${les.practiceTask}\n`;
+        }
+        if (les.notes) {
+          md += `- **Notes**: ${les.notes}\n`;
+        }
+        md += `\n`;
+      });
+    });
+    return md;
+  }
+  return `# ${p.title}\n\n` + p.milestones.map((m, i) => {
+    return `## ${i + 1}. ${m.title}\n- Status: ${m.state || (m.done ? 'Demonstrated' : 'Not started')}\n`;
+  }).join('\n');
+}
+
+export function synthesizeCurriculumIfMissing(p: Plan): Plan {
+  if (p.modules && p.modules.length > 0 && p.assessment) {
+    return p;
+  }
+
+  const milestones = p.milestones || [];
+  const lessons: Lesson[] = milestones.map((m, idx) => {
+    const resList: LessonResource[] = [];
+    if (m.startLearning) {
+      resList.push({
+        title: m.startLearning.title,
+        provider: m.startLearning.provider,
+        url: m.startLearning.url,
+        resourceType: m.startLearning.url.includes('youtube') ? 'video' : 'course',
+        verified: true
+      });
+    }
+    if (m.structuredLearning) {
+      resList.push({
+        title: m.structuredLearning.title,
+        provider: m.structuredLearning.provider,
+        url: m.structuredLearning.url,
+        resourceType: 'documentation',
+        verified: true
+      });
+    }
+    return {
+      id: `syn-les-${m.id || idx}`,
+      title: m.title || `Master ${m.skill}`,
+      description: `Targeted conceptual and practical mastery for ${m.skill}.`,
+      learningObjective: `Demonstrate practical capability in ${m.skill} through hands-on practice.`,
+      estimatedDuration: `${m.hours || 4} hours`,
+      resources: resList,
+      practiceTask: m.practice || 'Complete practical project and document evidence.',
+      done: m.state === 'Demonstrated' || Boolean(m.done),
+      notes: m.notes || ''
+    };
+  });
+
+  const modules: CurriculumModule[] = [];
+  if (lessons.length <= 3) {
+    modules.push({
+      id: 'mod-1',
+      title: 'Module 1: Foundations & Core Practice',
+      description: `Core concepts and practical competencies for ${p.goal}.`,
+      learningObjectives: ['Establish fundamental knowledge', 'Complete guided exercises'],
+      estimatedDuration: '4 weeks',
+      prerequisites: ['Basic introductory knowledge'],
+      lessons
+    });
+  } else {
+    const half = Math.ceil(lessons.length / 2);
+    modules.push({
+      id: 'mod-1',
+      title: 'Module 1: Foundations & Core Principles',
+      description: `Foundational learning and core skills for ${p.goal}.`,
+      learningObjectives: ['Understand underlying principles', 'Practice basic implementations'],
+      estimatedDuration: '4-6 weeks',
+      prerequisites: ['Introductory subject exposure'],
+      lessons: lessons.slice(0, half)
+    });
+    modules.push({
+      id: 'mod-2',
+      title: 'Module 2: Advanced Implementation & Applied Project',
+      description: `Practical systems, optimization, and capstone portfolio execution.`,
+      learningObjectives: ['Synthesize technical methods', 'Deliver demonstrable portfolio artifacts'],
+      estimatedDuration: '4-6 weeks',
+      prerequisites: ['Module 1: Foundations & Core Principles'],
+      lessons: lessons.slice(half)
+    });
+  }
+
+  const assessment: LearningAssessment = p.assessment || {
+    whatYouWillLearn: `Comprehensive, structured mastery of ${p.goal} through progressive modular checkpoints and verified resources.`,
+    whyIncluded: `Personalized curriculum designed to cover academic and practical competencies for ${p.goal}.`,
+    expectedSequence: 'Begins with core foundational knowledge, moves to guided practical tasks, and concludes with verified demonstrations.',
+    estimatedTotalDuration: `${(p.hoursPerWeek || 10) * 12} hours (approx 12 weeks)`,
+    majorMilestones: milestones.map(m => m.title).slice(0, 4),
+    existingKnowledgeAssessed: 'Assessed from your declared skills and academic background.',
+    skillGapsIdentified: milestones.filter(m => m.state !== 'Demonstrated').map(m => m.skill).slice(0, 4),
+    providerNotice: p.source === 'qwen' ? 'Personalized by Alibaba Cloud Qwen' : 'Deterministic Learning Plan'
+  };
+
+  return {
+    ...p,
+    assessment,
+    modules: p.modules && p.modules.length > 0 ? p.modules : modules
+  };
+}
+

@@ -143,7 +143,7 @@ export default function Dashboard({
     const goal = degrees.find(d => d.id === profile.goal);
     const sourceUnis = liveUniversities && liveUniversities.length > 0 ? liveUniversities : catalogueUniversities;
     const rankedUnis = goal ? rankTopUniversities(sourceUnis, profile, goal.id, 5) : [];
-    const topDegrees = recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations.slice(0, 5) : rankTopDegrees(profile, 5);
+    const topDegrees = recommendations?.source === 'groq' && recommendations.kind === 'degrees' ? recommendations.degreeRecommendations.slice(0, 5) : rankTopDegrees(profile, 5);
 
     const isMilestoneDone = (m: any) => Boolean(m.done || m.state === 'Demonstrated');
     const completed = plan?.milestones.filter(isMilestoneDone).length ?? 0;
@@ -433,7 +433,7 @@ export default function Dashboard({
                   <h2 id="top-degrees-heading">Top 5 Degree Paths for You</h2>
                 </div>
                 <p>
-                  {recommendations?.source === 'qwen' && recommendations.kind === 'degrees' ? 'Qwen-personalized suggestions with baseline-weighted match estimates, not admission or success probabilities.' : 'Deterministic match estimates based on your high-school subjects and interests.'} Select any degree to explore eligible Pakistani universities.
+                  {recommendations?.source === 'groq' && recommendations.kind === 'degrees' ? 'Groq-personalized suggestions with baseline-weighted match estimates, not admission or success probabilities.' : 'Deterministic match estimates based on your high-school subjects and interests.'} Select any degree to explore eligible Pakistani universities.
                 </p>
               </div>
               <div style={{display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap'}}>

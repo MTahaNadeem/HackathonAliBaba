@@ -57,6 +57,8 @@ export default function ProfileView({
   const [selectedFile, setSelectedFile] = useState<{ name: string; size: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isGraduate = draft.stage === 'Graduate / job seeker';
+
   function change<K extends keyof Profile>(k: K, v: Profile[K]) {
     setDraft((d) => ({ ...d, [k]: v }));
   }
@@ -71,21 +73,38 @@ export default function ProfileView({
       setError('Please select your school / college qualification.');
       return;
     }
-    if (draft.goal?.trim() && !degrees.some((d) => d.id === draft.goal)) {
+    if (!isGraduate && draft.goal?.trim() && !degrees.some((d) => d.id === draft.goal)) {
       setError('Please select a valid degree path or leave it blank to let our model recommend.');
       return;
     }
     if (!draft.city?.trim()) {
-      setError('Please enter your city to filter local university options.');
+      setError('Please enter your city to filter local options.');
       return;
     }
-    if (typeof draft.budget !== 'number' || isNaN(draft.budget) || draft.budget <= 0) {
+    if (!isGraduate && (typeof draft.budget !== 'number' || isNaN(draft.budget) || draft.budget <= 0)) {
       setError('Please enter a valid semester budget (greater than PKR 0).');
       return;
     }
+
+    const hasCv = Boolean(
+      selectedFile ||
+      (draft.resumeText && draft.resumeText.trim().length > 0) ||
+      (draft.extractedSkills && draft.extractedSkills.trim().length > 0)
+    );
+
+    if (isGraduate && !hasCv) {
+      setError('Please upload your CV / resume. A CV is mandatory for the Graduate Career path.');
+      return;
+    }
+
     const toSave: Profile = {
       ...draft,
+      journey: isGraduate ? 'career' : (draft.journey || 'student'),
       student_knows_degree: draft.goal ? true : (draft.student_knows_degree ?? false),
+      budget: isGraduate ? null : draft.budget,
+      ssc: isGraduate ? null : draft.ssc,
+      hssc: isGraduate ? null : draft.hssc,
+      net: isGraduate ? null : draft.net,
     };
     const p = profileSchema.safeParse(toSave);
     if (!p.success) {
@@ -237,7 +256,15 @@ export default function ProfileView({
               Complete a few details to personalize your experience
             </strong>
             <span style={{ color: '#3b82f6', fontSize: '13px' }}>
-              Please set your <strong>qualification</strong>, <strong>city</strong>, and <strong>semester budget</strong> below to unlock tailored recommendations. You can also specify a <strong>chosen direction</strong> or leave it open to let our model decide.
+              {isGraduate ? (
+                <>
+                  Please set your <strong>qualification</strong>, <strong>city</strong>, and upload your <strong>CV / resume</strong> below to unlock tailored career recommendations.
+                </>
+              ) : (
+                <>
+                  Please set your <strong>qualification</strong>, <strong>city</strong>, and <strong>semester budget</strong> below to unlock tailored recommendations. You can also specify a <strong>chosen direction</strong> or leave it open to let our model decide.
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -306,7 +333,14 @@ export default function ProfileView({
               label="I'm currently…"
               value={draft.stage}
               options={['Choosing a degree', 'Undergraduate', 'Graduate / job seeker']}
-              onChange={(v) => change('stage', v)}
+              onChange={(v) => {
+                change('stage', v);
+                if (v === 'Graduate / job seeker') {
+                  change('journey', 'career');
+                } else {
+                  change('journey', 'student');
+                }
+              }}
             />
             <Choice
               label="School / college qualification *"
@@ -325,10 +359,10 @@ export default function ProfileView({
             />
             <label className="field">
               <span>
-                Chosen direction / Field of interest <small style={{ color: '#64748b', fontWeight: 400 }}>(Optional — leave blank to let our model recommend)</small>
+                {isGraduate ? 'Target direction / Field of interest' : 'Chosen direction / Field of interest'} <small style={{ color: '#64748b', fontWeight: 400 }}>(Optional — leave blank to let our model recommend)</small>
               </span>
               <select
-                aria-label="Chosen direction / field of interest"
+                aria-label={isGraduate ? 'Target direction / field of interest' : 'Chosen direction / field of interest'}
                 className="coursecompass-select"
                 style={{
                   width: '100%',
@@ -343,7 +377,7 @@ export default function ProfileView({
                 value={draft.goal || ''}
                 onChange={(e) => change('goal', e.target.value)}
               >
-                <option value="">Leave unselected to let our model recommend degree paths…</option>
+                <option value="">{isGraduate ? 'Leave unselected to let our model recommend career paths…' : 'Leave unselected to let our model recommend degree paths…'}</option>
                 {['Technology', 'Engineering', 'Business', 'Social sciences', 'Arts & design', 'Sciences', 'Health', 'Humanities'].map((f) => {
                   const degsInField = degrees.filter((d) => d.field === f);
                   if (!degsInField.length) return null;
@@ -429,28 +463,30 @@ export default function ProfileView({
           <div className="form-section-heading">
             <span>03</span>
             <div>
-              <h2>Make it work for your life</h2>
-              <p>Practical constraints matter as much as ambition.</p>
+              <h2>{isGraduate ? 'Time & Flexibility' : 'Make it work for your life'}</h2>
+              <p>{isGraduate ? 'Set your learning availability and relocation preferences.' : 'Practical constraints matter as much as ambition.'}</p>
             </div>
           </div>
           <div className="form-grid">
-            <label className="field">
-              <span>
-                Semester education budget (PKR) <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={10000000}
-                value={draft.budget ?? ''}
-                onChange={(e) =>
-                  change('budget', e.target.value === '' ? null : Number(e.target.value))
-                }
-                placeholder="e.g. 200000"
-                required
-              />
-              <small>Tuition and mandatory semester charges. Living costs are separate.</small>
-            </label>
+            {!isGraduate && (
+              <label className="field">
+                <span>
+                  Semester education budget (PKR) <small style={{ color: '#2563eb', fontWeight: 600 }}>*</small>
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000000}
+                  value={draft.budget ?? ''}
+                  onChange={(e) =>
+                    change('budget', e.target.value === '' ? null : Number(e.target.value))
+                  }
+                  placeholder="e.g. 200000"
+                  required={!isGraduate}
+                />
+                <small>Tuition and mandatory semester charges. Living costs are separate.</small>
+              </label>
+            )}
             <label className="field">
               <span>Weekly learning time (hours)</span>
               <input
@@ -464,81 +500,83 @@ export default function ProfileView({
             </label>
           </div>
           <CheckField
-            label="I can consider universities outside my city"
+            label={isGraduate ? 'I can consider opportunities outside my city' : 'I can consider universities outside my city'}
             checked={draft.relocate}
             onChange={(v) => change('relocate', v)}
           />
         </section>
 
-        <section className="form-section">
-          <div className="form-section-heading">
-            <span>04</span>
-            <div>
-              <h2>
-                Academic results <small>Optional</small>
-              </h2>
-              <p>Used for source-backed university checks, never sent to the adviser.</p>
-            </div>
-          </div>
-          {foreign && (
-            <div className="inline-note">
-              <Info size={18} />
+        {!isGraduate && (
+          <section className="form-section">
+            <div className="form-section-heading">
+              <span>04</span>
               <div>
-                Enter official IBCC equivalence percentages, not raw O/A-level grades.{' '}
-                <a href={sourceLinks.ibcc} target="_blank" rel="noreferrer">
-                  Read IBCC guidance ↗
-                </a>
+                <h2>
+                  Academic results <small>Optional</small>
+                </h2>
+                <p>Used for source-backed university checks, never sent to the adviser.</p>
               </div>
             </div>
-          )}
-          {foreign && (
-            <CheckField
-              label="These percentages are from my official IBCC equivalence"
-              checked={draft.equivalence}
-              onChange={(v) => change('equivalence', v)}
-            />
-          )}
-          <div className="form-grid three">
-            {(
-              [
-                {
-                  key: 'ssc',
-                  label: foreign ? 'SSC / O-level equivalence (%)' : 'SSC / Matric (%)',
-                },
-                {
-                  key: 'hssc',
-                  label: foreign
-                    ? 'Completed HSSC / A-level equivalence (%)'
-                    : 'Completed HSSC / Intermediate (%)',
-                },
-                { key: 'net', label: 'NET score as a percentage (%)' },
-              ] as const
-            ).map((f) => (
-              <label className="field" key={f.key}>
-                <span>{f.label}</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  max={100}
-                  value={draft[f.key] ?? ''}
-                  onChange={(e) =>
-                    change(f.key, e.target.value === '' ? null : Number(e.target.value))
-                  }
-                  placeholder="Not available yet"
-                />
-              </label>
-            ))}
-          </div>
-          <p className="small-text muted">
-            NET examples: 150 out of 200 = 75%. The calculator supports completed qualifications on the
-            standard NET route. Other routes need official review.
-          </p>
-        </section>
+            {foreign && (
+              <div className="inline-note">
+                <Info size={18} />
+                <div>
+                  Enter official IBCC equivalence percentages, not raw O/A-level grades.{' '}
+                  <a href={sourceLinks.ibcc} target="_blank" rel="noreferrer">
+                    Read IBCC guidance ↗
+                  </a>
+                </div>
+              </div>
+            )}
+            {foreign && (
+              <CheckField
+                label="These percentages are from my official IBCC equivalence"
+                checked={draft.equivalence}
+                onChange={(v) => change('equivalence', v)}
+              />
+            )}
+            <div className="form-grid three">
+              {(
+                [
+                  {
+                    key: 'ssc',
+                    label: foreign ? 'SSC / O-level equivalence (%)' : 'SSC / Matric (%)',
+                  },
+                  {
+                    key: 'hssc',
+                    label: foreign
+                      ? 'Completed HSSC / A-level equivalence (%)'
+                      : 'Completed HSSC / Intermediate (%)',
+                  },
+                  { key: 'net', label: 'NET score as a percentage (%)' },
+                ] as const
+              ).map((f) => (
+                <label className="field" key={f.key}>
+                  <span>{f.label}</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={100}
+                    value={draft[f.key] ?? ''}
+                    onChange={(e) =>
+                      change(f.key, e.target.value === '' ? null : Number(e.target.value))
+                    }
+                    placeholder="Not available yet"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="small-text muted">
+              NET examples: 150 out of 200 = 75%. The calculator supports completed qualifications on the
+              standard NET route. Other routes need official review.
+            </p>
+          </section>
+        )}
 
         <section className="form-section">
           <div className="form-section-heading">
-            <span>05</span>
+            <span>{isGraduate ? '04' : '05'}</span>
             <div>
               <h2>Skills you already use</h2>
               <p>Choose what you can do. These remain self-reported until evidenced.</p>
@@ -561,23 +599,38 @@ export default function ProfileView({
 
         <section className="form-section">
           <div className="form-section-heading">
-            <span>06</span>
+            <span>{isGraduate ? '05' : '06'}</span>
             <div>
-              <h2>Career & Evidence</h2>
-              <p>Upload a resume to auto-fill skills, experience, projects & certifications.</p>
+              <h2>
+                Career & Evidence{' '}
+                {isGraduate && (
+                  <span style={{ color: '#2563eb', fontSize: '0.82em', fontWeight: 600 }}>
+                    (Mandatory for Career Path *)
+                  </span>
+                )}
+              </h2>
+              <p>
+                {isGraduate
+                  ? 'Upload your CV / resume (mandatory) to auto-fill skills, experience, projects & certifications.'
+                  : 'Upload a resume to auto-fill skills, experience, projects & certifications.'}
+              </p>
             </div>
           </div>
 
           <div className="resume-dropzone-container">
             {/* Helper text clearly positioned above the dropzone */}
-            <div className="resume-dropzone-helper">
+            <div className={`resume-dropzone-helper ${isGraduate ? 'mandatory' : ''}`}>
               <FileText size={18} style={{ flexShrink: 0 }} />
-              <span>Upload a PDF or Word to extract your profile automatically.</span>
+              <span>
+                {isGraduate
+                  ? 'Upload your CV or resume (PDF or Word) to unlock your career recommendations. * Mandatory'
+                  : 'Upload a PDF or Word to extract your profile automatically.'}
+              </span>
             </div>
 
             {/* Styled dashed-border dropzone box */}
             <div
-              className={`resume-dropzone ${isDragging ? 'drag-active' : ''} ${selectedFile ? 'has-file' : ''} ${cvLoading ? 'loading' : ''}`}
+              className={`resume-dropzone ${isDragging ? 'drag-active' : ''} ${selectedFile ? 'has-file' : ''} ${cvLoading ? 'loading' : ''} ${isGraduate && !selectedFile && !draft.resumeText && !draft.extractedSkills ? 'mandatory' : ''}`}
               onDragEnter={handleDragEnter}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -643,8 +696,12 @@ export default function ProfileView({
                   <div className="resume-dropzone-icon">
                     <UploadCloud size={28} />
                   </div>
-                  <h3 className="resume-dropzone-primary">Upload your resume</h3>
-                  <p className="resume-dropzone-secondary">PDF or Word, up to 5MB</p>
+                  <h3 className="resume-dropzone-primary">
+                    Upload your resume {isGraduate && <span style={{ color: '#e11d48' }}>*</span>}
+                  </h3>
+                  <p className="resume-dropzone-secondary">
+                    {isGraduate ? 'Mandatory for graduates · PDF or Word, up to 5MB' : 'PDF or Word, up to 5MB'}
+                  </p>
                   <div className="resume-dropzone-actions">
                     <button
                       type="button"
@@ -774,7 +831,11 @@ export default function ProfileView({
           </p>
           <button className="button blue" disabled={busy} type="submit">
             <Save size={17} />
-            {busy ? 'Saving…' : cloud ? 'Save my profile' : 'Use these preferences'}
+            {busy
+              ? 'Saving…'
+              : isGraduate
+                ? (cloud ? 'Save profile & open Career Path' : 'Save & open Career Path')
+                : (cloud ? 'Save my profile' : 'Use these preferences')}
           </button>
         </div>
       </form>
